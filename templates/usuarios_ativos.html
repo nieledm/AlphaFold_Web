@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>Usuários Ativos</h1>
+
+    <!-- Formulário de Pesquisa -->
+    <form method="GET" action="{{ url_for('admin_usuarios') }}">
+        <input type="text" name="search" value="{{ search_query }}" placeholder="Buscar por nome ou email">
+        <button type="submit">Buscar</button>
+    </form>
+    
+    <!-- Usuários Ativos -->
+    <table>
+        <thead>
+            <tr>
+                <th>Nome</th>
+                <th>Email</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in usuarios_ativos %}
+                <tr>
+                    <td>{{ user[1] }}</td>  <!-- Nome do usuário -->
+                    <td>{{ user[2] }}</td>  <!-- Email do usuário -->
+                    <td>
+                        <!-- Formulário para desativar o usuário -->
+                        <form method="POST" action="{{ url_for('inativar_usuario', user_id=user[0]) }}">
+                            <button type="submit">Desativar</button>
+                        </form>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+{% endblock %}
