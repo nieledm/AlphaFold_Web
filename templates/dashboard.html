@@ -4,8 +4,13 @@
     <h2>Olá, {{ session['user_name'] }}! {% if session['is_admin'] %}<span class="badge bg-danger">Admin</span>{% endif %}</h2>
     
     {% if session['is_admin'] %}
-        <div class="mb-3">
+        <!-- <div class="mb-3">
         <a href="{{ url_for('admin_usuarios') }}" class="btn btn-primary">Gerenciar Usuários</a>
+        </div> -->
+        <div class="d-flex gap-2 mb-3">
+            <a href="{{ url_for('usuarios_ativos') }}" class="btn btn-primary flex-fill">Usuários Ativos</a>
+            <a href="{{ url_for('usuarios_pendentes') }}" class="btn btn-primary flex-fill">Usuários Pendentes</a>
+            <a href="{{ url_for('usuarios_desativados') }}" class="btn btn-primary flex-fill">Usuários Desativados</a>
         </div>
     {% endif %}
 

@@ -1,6 +1,15 @@
 {% extends 'base.html' %}
 
 {% block content %}
+
+    {% if session['is_admin'] %}
+        <div class="d-flex gap-2 mb-3">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-primary flex-fill">Dashboard</a>
+            <a href="{{ url_for('usuarios_ativos') }}" class="btn btn-primary flex-fill">Usuários Ativos</a>
+            <a href="{{ url_for('usuarios_pendentes') }}" class="btn btn-primary flex-fill">Usuários Pendentes</a>
+        </div>
+    {% endif %}
+
     <h1>Usuários Desativados</h1>
 
     <!-- Formulário de Pesquisa -->
