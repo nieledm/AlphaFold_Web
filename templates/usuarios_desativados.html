@@ -3,44 +3,44 @@
 {% block content %}
 
     {% if session['is_admin'] %}
-        <div class="d-flex gap-2 mb-3">
-            <a href="{{ url_for('dashboard') }}" class="btn btn-primary flex-fill">Dashboard</a>
-            <a href="{{ url_for('usuarios_ativos') }}" class="btn btn-primary flex-fill">Usuários Ativos</a>
-            <a href="{{ url_for('usuarios_pendentes') }}" class="btn btn-primary flex-fill">Usuários Pendentes</a>
-        </div>
+        {% include 'navegacao.html' %}
     {% endif %}
 
-    <h1>Usuários Desativados</h1>
+    <h1 class="text-center my-4">Usuários Desativados</h1>
 
     <!-- Formulário de Pesquisa -->
-    <form method="GET" action="{{ url_for('admin_usuarios') }}">
-        <input type="text" name="search" value="{{ search_query }}" placeholder="Buscar por nome ou email">
-        <button type="submit">Buscar</button>
-    </form>
+    <form method="GET" action="{{ url_for('admin_usuarios') }}" class="mb-4">
+        <div class="input-group">
+            <input type="text" class="form-control search-box" name="search" value="{{ search_query }}" placeholder="Buscar por nome ou email">
+            <button class="btn search-btn" type="submit">Buscar</button>
+        </div>
+    </form>  
     
     <!-- Usuários Desativados -->
-    <table>
-        <thead>
-            <tr>
-                <th>Nome</th>
-                <th>Email</th>
-                <th>Ações</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for user in usuarios_desativados %}
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover">
+            <thead class="table-light">
                 <tr>
-                    <td>{{ user[1] }}</td>  <!-- Nome do usuário -->
-                    <td>{{ user[2] }}</td>  <!-- Email do usuário -->
-                    <td>
-                        <!-- Formulário para reativar o usuário -->
-                        <form method="POST" action="{{ url_for('aprovar_usuario', user_id=user[0]) }}">
-                            <button type="submit">Reativar</button>
-                        </form>
-                    </td>
+                    <th>Nome</th>
+                    <th>Email</th>
+                    <th class="text-center">Ações</th>
                 </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                {% for user in usuarios_desativados %}
+                    <tr>
+                        <td>{{ user[1] }}</td>  <!-- Nome do usuário -->
+                        <td>{{ user[2] }}</td>  <!-- Email do usuário -->
+                        <td class="text-center">
+                            <!-- Formulário para reativar o usuário -->
+                            <form method="POST" action="{{ url_for('aprovar_usuario', user_id=user[0]) }}">
+                                <button type="submit">Reativar</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
 {% endblock %}
