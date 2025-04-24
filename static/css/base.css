@@ -12,3 +12,8 @@ a {
   a:hover {
     color: #3498db; /* muda a cor no hover */
   }
+
+
+  .btn-uniform {
+      width: 120px; /* ou qualquer largura que você achar boa */
+  }

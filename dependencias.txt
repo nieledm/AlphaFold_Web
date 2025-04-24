@@ -1,0 +1,2 @@
+Para usar o envio de emails, instalar via bash
+    pip install itsdangerous

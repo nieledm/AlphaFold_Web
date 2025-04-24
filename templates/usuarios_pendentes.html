@@ -1,42 +1,22 @@
-{% extends 'base.html' %}
+{% extends 'base_usuarios.html' %}
 
-{% block content %}
-    <h1 class="text-center my-4">Usuários Pendentes</h1>
-
-    <!-- Formulário de Pesquisa -->
-    <form method="GET" action="{{ url_for('admin_usuarios') }}" class="mb-4">
-        <div class="input-group">
-            <input type="text" class="form-control search-box" name="search" value="{{ search_query }}" placeholder="Buscar por nome ou email">
-            <button class="btn search-btn" type="submit">Buscar</button>
-        </div>
-    </form>  
-    
-    <!-- Usuários Pendentes -->
-
-    <div class="table-responsive">
-        <table class="table table-bordered table-hover">
-            <thead class="table-light">
-                <tr>
-                    <th>Nome</th>
-                    <th>Email</th>
-                    <th class="text-center">Ações</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for user in usuarios_pendentes %}
-                    <tr>
-                        <td>{{ user[1] }}</td>  <!-- Nome do usuário -->
-                        <td>{{ user[2] }}</td>  <!-- Email do usuário -->
-                        <td class="text-center">
-                            <!-- Formulário para ativar o usuário -->
-                            <form method="POST" action="{{ url_for('aprovar_usuario', user_id=user[0]) }}">
-                                <button type="submit">Ativar</button>
-                            </form>
-                        </td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    
+{% block tabela_usuarios %}
+    {% for user in usuarios_pendentes %}
+    <tr>
+        <td>{{ user[1] }}</td>  <!-- Nome do usuário -->
+        <td>{{ user[2] }}</td>  <!-- Email do usuário -->
+        <td class="text-center">
+            <div class="d-flex justify-content-center gap-2">
+                <!-- Formulário para ativar o usuário -->
+                <form method="POST" action="{{ url_for('aprovar_usuario', user_id=user[0]) }}">
+                    <button type="submit" class="btn-sm btn-uniform">Ativar</button>
+                </form>
+                <!-- Formulário para excluir o usuário -->
+                <form method="POST" action="{{ url_for('excluir_usuario', user_id=user[0]) }}" onsubmit="return confirm('Tem certeza que deseja excluir este usuário?');">
+                    <button type="submit" class="btn btn-danger btn-sm btn-uniform">Excluir</button>
+                </form>
+            </div>
+        </td>
+    </tr>
+    {% endfor %}
 {% endblock %}

@@ -5,16 +5,36 @@ import json
 import re
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
+from itsdangerous import URLSafeTimedSerializer
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import smtplib
+from smtplib import SMTP_SSL
 
 app = Flask(__name__)
-app.secret_key = '123' 
+app.secret_key = '#!Alph@3!' 
+
+# ==============================================================
+# CONFIGURAÇÕES GLOBAIS
+# ==============================================================
 DATABASE = 'database.db'
 
-#########################################################################
-################## BANCO DE DADOS (sqlite3 puro) ########################
-#########################################################################
+# Configurações AlphaFold
+ALPHAFOLD_INPUT_BASE = '/str1/projects/AI-DD/alphafold3/alphafold3_input'
+ALPHAFOLD_OUTPUT_BASE = '/str1/projects/AI-DD/alphafold3/alphafold3_output'
+ALPHAFOLD_PARAMS = '/str1/projects/AI-DD/alphafold3/alphafold3_params'
+ALPHAFOLD_DB = '/str1/projects/AI-DD/alphafold3/alphafold3_DB'
 
+# Configurações de e-mail
+EMAIL_SENDER = 'nieledm@gmail.com'
+EMAIL_PASSWORD = 'zlde qbxb zvif bfpg'
+serializer = URLSafeTimedSerializer(app.secret_key)
+
+# ==============================================================
+# FUNÇÕES DE BANCO DE DADOS
+# ==============================================================
 def init_db():
+    """Inicializa o banco de dados com as tabelas necessárias"""
     if not os.path.exists(DATABASE):
         with sqlite3.connect(DATABASE) as conn:
             c = conn.cursor()
@@ -24,267 +44,97 @@ def init_db():
                     name TEXT NOT NULL,
                     email TEXT UNIQUE NOT NULL,
                     password TEXT NOT NULL,
-                    is_admin INTEGER DEFAULT 0
+                    is_admin INTEGER DEFAULT 0,
+                    is_active INTEGER DEFAULT 0
                 )
             ''')
             conn.commit()
 
+def get_db_connection():
+    """Retorna uma conexão com o banco de dados"""
+    conn = sqlite3.connect(DATABASE)
+    conn.row_factory = sqlite3.Row
+    return conn
+
 def get_user_by_email(email):
-    with sqlite3.connect(DATABASE) as conn:
+    """Busca um usuário pelo e-mail"""
+    with get_db_connection() as conn:
         c = conn.cursor()
         c.execute('SELECT * FROM users WHERE email = ?', (email,))
         return c.fetchone()
 
-#########################################################################
-####################### ROTAS DE TELAS## ################################
-#########################################################################
+# ==============================================================
+# FUNÇÕES DE E-MAIL
+# ==============================================================
+def send_email(to_email, subject, html_content):
+    """Função genérica para enviar e-mails"""
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = EMAIL_SENDER
+    msg["To"] = to_email
+    msg.attach(MIMEText(html_content, "html"))
+    
+    try:
+        with SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(EMAIL_SENDER, EMAIL_PASSWORD)
+            server.sendmail(EMAIL_SENDER, to_email, msg.as_string())
+        return True
+    except Exception as e:
+        print(f"Erro ao enviar e-mail: {e}")
+        return False
 
-@app.route('/')
-def index():
-    if 'user_id' in session:
-        return redirect(url_for('dashboard'))
-    else:
-        return redirect(url_for('login'))
+def send_verification_email(name, email, token):
+    """Envia e-mail de verificação para novo usuário"""
+    verification_url = url_for('confirm_email', token=token, _external=True)
+    html = f"""
+    <html>
+        <body>
+            <p>Olá {name},</p>
+            <p>Por favor, confirme seu e-mail clicando no link abaixo:</p>
+            <p><a href="{verification_url}">Confirmar e-mail</a></p>
+        </body>
+    </html>
+    """
+    send_email(email, "Confirme seu e-mail", html)
 
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        name = request.form['name']
-        email = request.form['email']
-        password = request.form['password']
-
-        try:
-            with sqlite3.connect(DATABASE) as conn:
-                c = conn.cursor()
-                c.execute('INSERT INTO users (name, email, password, is_active) VALUES (?, ?, ?, ?)',
-                          (name, email, password, 0))
-                conn.commit()
-                flash('Cadastro enviado para aprovação do administrador.', 'info')
-                return redirect(url_for('login'))
-        except sqlite3.IntegrityError:
-            flash('E-mail já cadastrado.', 'danger')
-
-    return render_template('register.html')
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        email = request.form['email']
-        password = request.form['password']
-
-        with sqlite3.connect(DATABASE) as conn:
-            c = conn.cursor()
-            c.execute('SELECT id, name, email, password, is_admin, is_active FROM users WHERE email = ?', (email,))
-            user = c.fetchone()
-
-            if user and user[3] == password:
-                is_active = user[5]
-                if is_active == 0:
-                    flash('Seu cadastro ainda não foi aprovado.', 'warning')
-                elif is_active == 2:
-                    flash('Sua conta foi inativada. Contate o administrador.', 'danger')
-                elif is_active == 1:
-                    session['user_id'] = user[0]
-                    session['user_name'] = user[1]
-                    session['is_admin'] = bool(user[4])
-                    flash('Login bem-sucedido!', 'success')
-                    return redirect(url_for('dashboard'))
-            else:
-                flash('Credenciais inválidas.', 'danger')
-
-    return render_template('login.html')
-
-
-@app.route('/logout')
-def logout():
-    session.clear()
-    flash('Logout realizado com sucesso.', 'info')
-    return redirect(url_for('login'))
-
-@app.route('/dashboard')
-def dashboard():
-    if 'user_id' not in session:
-        flash('Por favor, faça login primeiro.', 'warning')
-        return redirect(url_for('login'))
-
-    nome = session.get('user_name', 'Usuário')
-    return render_template('dashboard.html', nome_usuario=nome)
-
-# Rota para ver usuários ativos ou pendentes
-@app.route('/admin/usuarios', methods=['GET'])
-def admin_usuarios():
-    search_query = request.args.get('search', '')  # Pega a query de pesquisa, se existir
-
-    with sqlite3.connect(DATABASE) as conn:
+def send_admin_notification(name, email):
+    """Notifica administradores sobre novo usuário pendente"""
+    with get_db_connection() as conn:
         c = conn.cursor()
+        c.execute('SELECT email FROM users WHERE is_admin = 1')
+        admins = c.fetchall()
+    
+    html = f"""
+    <html>
+        <body>
+            <p>Olá,</p>
+            <p>O usuário {name} ({email}) confirmou o seu e-mail para usar o AlphaFold e aguarda aprovação.</p>
+            <p>Por favor, acesse o painel de administração para aprovar ou rejeitar a solicitação.</p>
+        </body>
+    </html>
+    """
+    
+    for admin in admins:
+        send_email(admin[0], "Novo usuário aguardando aprovação no AlphaFold", html)
 
-        # Buscar usuários ativos com filtro e ordenação
-        c.execute('SELECT id, name, email FROM users WHERE is_active = 1 AND (name LIKE ? OR email LIKE ?) ORDER BY name ASC',
-                  ('%' + search_query + '%', '%' + search_query + '%'))
-        usuarios_ativos = c.fetchall()
+def send_activation_email(user_email, user_name):
+    """Envia e-mail de confirmação de ativação da conta"""
+    html = f"""
+    <html>
+        <body>
+            <p>Olá {user_name},</p>
+            <p>Sua conta foi ativada com sucesso!</p>
+            <p>Agora você pode acessar o sistema.</p>
+        </body>
+    </html>
+    """
+    send_email(user_email, "Sua conta no AlphaFold foi ativada", html)
 
-        # Buscar usuários pendentes com filtro e ordenação
-        c.execute('SELECT id, name, email FROM users WHERE is_active = 0 AND (name LIKE ? OR email LIKE ?) ORDER BY name ASC',
-                  ('%' + search_query + '%', '%' + search_query + '%'))
-        usuarios_pendentes = c.fetchall()
-
-        # Buscar usuários desativados com filtro e ordenação
-        c.execute('SELECT id, name, email FROM users WHERE is_active = 2 AND (name LIKE ? OR email LIKE ?) ORDER BY name ASC',
-                  ('%' + search_query + '%', '%' + search_query + '%'))
-        usuarios_desativados = c.fetchall()
-
-    return render_template('admin_usuarios.html', 
-                           usuarios_ativos=usuarios_ativos, 
-                           usuarios_pendentes=usuarios_pendentes, 
-                           usuarios_desativados=usuarios_desativados, 
-                           search_query=search_query)
-
-# Rota para ver usuários ativos
-@app.route('/admin/usuarios_ativos', methods=['GET'])
-def usuarios_ativos():
-    search_query = request.args.get('search', '')  # Pega a query de pesquisa, se existir
-
-    with sqlite3.connect(DATABASE) as conn:
-        c = conn.cursor()
-
-        # Buscar usuários ativos com filtro e ordenação
-        c.execute('SELECT id, name, email FROM users WHERE is_active = 1 AND (name LIKE ? OR email LIKE ?) ORDER BY name ASC',
-                  ('%' + search_query + '%', '%' + search_query + '%'))
-        usuarios_ativos = c.fetchall()
-        
-    return render_template('usuarios_ativos.html', 
-                           usuarios_ativos=usuarios_ativos,                            
-                           search_query=search_query)
-
-# Rota para ver usuários  pendentes
-@app.route('/admin/usuarios_pendentes', methods=['GET'])
-def usuarios_pendentes():
-    search_query = request.args.get('search', '')  # Pega a query de pesquisa, se existir
-
-    with sqlite3.connect(DATABASE) as conn:
-        c = conn.cursor()
-
-        # Buscar usuários pendentes com filtro e ordenação
-        c.execute('SELECT id, name, email FROM users WHERE is_active = 0 AND (name LIKE ? OR email LIKE ?) ORDER BY name ASC',
-                  ('%' + search_query + '%', '%' + search_query + '%'))
-        usuarios_pendentes = c.fetchall()
-
-    return render_template('usuarios_pendentes.html', 
-                           usuarios_pendentes=usuarios_pendentes, 
-                           search_query=search_query)
-# Rota para ver usuários desativos
-@app.route('/admin/usuarios_desativados', methods=['GET'])
-def usuarios_desativados():
-    search_query = request.args.get('search', '')  # Pega a query de pesquisa, se existir
-
-    with sqlite3.connect(DATABASE) as conn:
-        c = conn.cursor()
-
-        # Buscar usuários desativados com filtro e ordenação
-        c.execute('SELECT id, name, email FROM users WHERE is_active = 2 AND (name LIKE ? OR email LIKE ?) ORDER BY name ASC',
-                  ('%' + search_query + '%', '%' + search_query + '%'))
-        usuarios_desativados = c.fetchall()
-
-    return render_template('usuarios_desativados.html', 
-                           usuarios_desativados=usuarios_desativados, 
-                           search_query=search_query)
-
-# Rota para aprovar usuário
-@app.route('/admin/aprovar/<int:user_id>', methods=['POST'])
-def aprovar_usuario(user_id):
-    with sqlite3.connect(DATABASE) as conn:
-        c = conn.cursor()
-        c.execute('UPDATE users SET is_active = 1 WHERE id = ?', (user_id,))
-        conn.commit()
-    flash('Usuário ativado com sucesso!', 'success')
-    return redirect(url_for('admin_usuarios'))
-
-
-
-#Rota para inativar usuários
-@app.route('/admin/inativar/<int:user_id>', methods=['POST'])
-def inativar_usuario(user_id):
-    with sqlite3.connect(DATABASE) as conn:
-        c = conn.cursor()
-        c.execute('UPDATE users SET is_active = 2 WHERE id = ?', (user_id,))
-        conn.commit()
-    flash('Usuário desativado com sucesso!', 'warning')
-    return redirect(url_for('admin_usuarios'))
-
-#########################################################################
-################## PASSANDO O NOME DO USUÁRIO LOGADO ####################
-#########################################################################
-@app.before_request
-def before_request():
-    # Define o nome do usuário globalmente
-    g.nome_usuario = session.get('user_name', 'Usuário')
-
-@app.context_processor
-def inject_user():
-    return dict(nome_usuario=g.nome_usuario)
-
-#########################################################################
-################## DOCKER + UPLOAD + VALIDAÇÃO JSON #####################
-#########################################################################
-
-# Diretórios base do AlphaFold3
-ALPHAFOLD_INPUT_BASE = '/str1/projects/AI-DD/alphafold3/alphafold3_input'
-ALPHAFOLD_OUTPUT_BASE = '/str1/projects/AI-DD/alphafold3/alphafold3_output'
-ALPHAFOLD_PARAMS = '/str1/projects/AI-DD/alphafold3/alphafold3_params'
-ALPHAFOLD_DB = '/str1/projects/AI-DD/alphafold3/alphafold3_DB'
-
-@app.route('/upload', methods=['POST'])
-def upload_file():
-    if 'file' not in request.files:
-        return 'No file part'
-
-    file = request.files['file']
-    if file.filename == '':
-        return 'No selected file'
-
-    if file and file.filename.endswith('.json'):
-        filename = file.filename
-        base_name = filename.rsplit('.', 1)[0]
-
-        input_subdir = os.path.join(ALPHAFOLD_INPUT_BASE, base_name)
-        output_subdir = os.path.join(ALPHAFOLD_OUTPUT_BASE, base_name)
-
-        os.makedirs(input_subdir, exist_ok=True)
-        os.makedirs(output_subdir, exist_ok=True)
-
-        input_file_path = os.path.join(input_subdir, filename)
-        file.save(input_file_path)
-
-        # Validação JSON 
-        # validado, mensagem = validar_json_input(input_file_path)
-        # if not validado:
-        #     flash(mensagem)
-        #     return redirect(url_for('dashboard'))
-
-        # Comando Docker
-        command = (
-            f"docker run -it "
-            f"--volume {ALPHAFOLD_INPUT_BASE}:/root/af_input "
-            f"--volume {ALPHAFOLD_OUTPUT_BASE}:/root/af_output "
-            f"--volume {ALPHAFOLD_PARAMS}:/root/models "
-            f"--volume {ALPHAFOLD_DB}:/root/public_databases "
-            f"--gpus all alphafold3 "
-            f"python run_alphafold.py "
-            f"--json_path=/root/af_input/{base_name}/{filename} "
-            f"--output_dir=/root/af_output/{base_name}"
-        )
-
-        subprocess.run(command, shell=True)
-
-        result_file = os.path.join(output_subdir, 'predicted.pdb')
-        if os.path.exists(result_file):
-            return send_from_directory(output_subdir, 'predicted.pdb')
-        else:
-            return 'Prediction failed or output not generated.'
-
-    return 'Invalid file format'
-
+# ==============================================================
+# FUNÇÕES DE VALIDAÇÃO
+# ==============================================================
 def validar_json_input(json_path):
+    """Valida o arquivo JSON de entrada para o AlphaFold"""
     try:
         with open(json_path, 'r') as f:
             data = json.load(f)
@@ -307,9 +157,341 @@ def validar_json_input(json_path):
     except Exception as e:
         return False, f"Erro ao validar JSON: {str(e)}"
 
-#########################################################################
-################################# MAIN ##################################
-#########################################################################
+# ==============================================================
+# ROTAS DE AUTENTICAÇÃO
+# ==============================================================
+@app.route('/')
+def index():
+    """Rota principal que redireciona para login ou dashboard"""
+    if 'user_id' in session:
+        return redirect(url_for('dashboard'))
+    return redirect(url_for('login'))
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Rota de login"""
+    if request.method == 'POST':
+        email = request.form['email']
+        password = request.form['password']
+
+        user = get_user_by_email(email)
+
+        if user and user['password'] == password:
+            if user['is_active'] == 0:
+                flash('Seu cadastro ainda não foi aprovado.', 'warning')
+            elif user['is_active'] == 2:
+                flash('Sua conta foi inativada. Contate o administrador.', 'danger')
+            elif user['is_active'] == 1:
+                session['user_id'] = user['id']
+                session['user_name'] = user['name']
+                session['is_admin'] = bool(user['is_admin'])
+                flash('Login bem-sucedido!', 'success')
+                return redirect(url_for('dashboard'))
+        else:
+            flash('Credenciais inválidas.', 'danger')
+
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    """Rota de logout"""
+    session.clear()
+    flash('Logout realizado com sucesso.', 'info')
+    return redirect(url_for('login'))
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    """Rota de registro de novos usuários"""
+    if request.method == 'POST':
+        name = request.form['name']
+        email = request.form['email']
+        password = request.form['password'] 
+
+        if get_user_by_email(email):
+            flash('E-mail já cadastrado.', 'danger')
+            return redirect(url_for('login'))
+
+        user_data = {'name': name, 'email': email, 'password': password}
+        token = serializer.dumps(user_data, salt='email-verification')
+        send_verification_email(name, email, token)
+
+        flash('Verifique seu e-mail para confirmar o cadastro.', 'info')
+        return redirect(url_for('aviso', aviso_id=1))
+
+    return render_template('register.html')
+
+@app.route('/confirm/<token>')
+def confirm_email(token):
+    """Rota para confirmar e-mail do usuário"""
+    try:
+        user_data = serializer.loads(token, salt='email-verification', max_age=3600)
+        name, email, password = user_data['name'], user_data['email'], user_data['password']
+
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            if get_user_by_email(email):
+                flash('Este e-mail já foi confirmado anteriormente.', 'info')
+                return redirect(url_for('login'))
+
+            c.execute('INSERT INTO users (name, email, password, is_active) VALUES (?, ?, ?, ?)',
+                      (name, email, password, 0))
+            conn.commit()
+
+        send_admin_notification(name, email)
+        flash('E-mail confirmado com sucesso! Aguardando aprovação do administrador.', 'success')
+        return redirect(url_for('aviso', aviso_id=2))
+
+    except Exception as e:
+        flash('O link de confirmação é inválido ou expirou.', 'danger')
+        print('Erro na confirmação:', e)
+        return redirect(url_for('register'))
+
+# ==============================================================
+# ROTAS DE USUÁRIO
+# ==============================================================
+@app.route('/dashboard')
+def dashboard():
+    """Painel principal do usuário"""
+    if 'user_id' not in session:
+        flash('Por favor, faça login primeiro.', 'warning')
+        return redirect(url_for('login'))
+
+    return render_template('dashboard.html', nome_usuario=session.get('user_name', 'Usuário'))
+
+@app.route('/aviso/<int:aviso_id>')
+def aviso(aviso_id):
+    """Exibe mensagens de aviso"""
+    avisos = {
+        1: "Um email de confimação foi enviado para o endereço de email cadastrado. Por favor, verifique a sua caixa de entrada (ou spam) para confirmar o seu e-mail.", 
+        2: "Seu e-mail foi confirmado! Agora é só aguardar a aprovação do administrador.",
+        3: "A sua conta foi ativada com sucesso!",
+    }
+    return render_template('base_avisos.html', aviso_mensagem=avisos.get(aviso_id, "Aviso desconhecido."))
+
+# ==============================================================
+# ROTAS DE ADMINISTRAÇÃO
+# ==============================================================
+@app.route('/admin/usuarios_ativos')
+def usuarios_ativos():
+    """Lista usuários ativos"""
+    if not session.get('is_admin'):
+        flash('Acesso não autorizado.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    search_query = request.args.get('search', '')
+    
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute('''
+            SELECT id, name, email, is_admin 
+            FROM users 
+            WHERE is_active = 1 AND (name LIKE ? OR email LIKE ?) 
+            ORDER BY name ASC
+        ''', ('%' + search_query + '%', '%' + search_query + '%'))
+        usuarios_ativos = c.fetchall()
+        
+    return render_template('usuarios_ativos.html',
+                         titulo='Usuários Ativos', 
+                         usuarios_ativos=usuarios_ativos,                            
+                         search_query=search_query)
+
+@app.route('/admin/usuarios_pendentes')
+def usuarios_pendentes():
+    """Lista usuários pendentes de aprovação"""
+    if not session.get('is_admin'):
+        flash('Acesso não autorizado.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    search_query = request.args.get('search', '')
+    
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute('''
+            SELECT id, name, email 
+            FROM users 
+            WHERE is_active = 0 AND (name LIKE ? OR email LIKE ?) 
+            ORDER BY name ASC
+        ''', ('%' + search_query + '%', '%' + search_query + '%'))
+        usuarios_pendentes = c.fetchall()
+
+    return render_template('usuarios_pendentes.html',
+                         titulo='Usuários Pendentes de Ativação', 
+                         usuarios_pendentes=usuarios_pendentes, 
+                         search_query=search_query)
+
+@app.route('/admin/usuarios_desativados')
+def usuarios_desativados():
+    """Lista usuários desativados"""
+    if not session.get('is_admin'):
+        flash('Acesso não autorizado.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    search_query = request.args.get('search', '')
+    
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute('''
+            SELECT id, name, email 
+            FROM users 
+            WHERE is_active = 2 AND (name LIKE ? OR email LIKE ?) 
+            ORDER BY name ASC
+        ''', ('%' + search_query + '%', '%' + search_query + '%'))
+        usuarios_desativados = c.fetchall()
+
+    return render_template('usuarios_desativados.html',
+                         titulo='Usuários Desativados', 
+                         usuarios_desativados=usuarios_desativados, 
+                         search_query=search_query)
+
+@app.route('/admin/aprovar/<int:user_id>', methods=['POST'])
+def aprovar_usuario(user_id):
+    """Aprova um usuário pendente"""
+    if not session.get('is_admin'):
+        flash('Acesso não autorizado.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute('SELECT name, email FROM users WHERE id = ?', (user_id,))
+        user = c.fetchone()
+
+        if user:
+            c.execute('UPDATE users SET is_active = 1 WHERE id = ?', (user_id,))
+            conn.commit()
+            send_activation_email(user['email'], user['name'])
+            flash('Usuário ativado com sucesso!', 'success')
+        else:
+            flash('Usuário não encontrado!', 'error')
+
+    return redirect(url_for('usuarios_ativos'))
+
+@app.route('/admin/inativar/<int:user_id>', methods=['POST'])
+def inativar_usuario(user_id):
+    """Inativa um usuário"""
+    if not session.get('is_admin'):
+        flash('Acesso não autorizado.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute('UPDATE users SET is_active = 2 WHERE id = ?', (user_id,))
+        conn.commit()
+    flash('Usuário desativado com sucesso!', 'warning')
+    return redirect(url_for('usuarios_desativados'))
+
+@app.route('/usuarios/<int:user_id>/excluir', methods=['POST'])
+def excluir_usuario(user_id):
+    """Exclui um usuário pendente"""
+    if not session.get('is_admin'):
+        flash('Acesso não autorizado.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    try:
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute('DELETE FROM users WHERE id = ?', (user_id,))
+            conn.commit()
+            flash('Usuário excluído com sucesso!' if c.rowcount > 0 else 'Usuário não encontrado.', 
+                  'success' if c.rowcount > 0 else 'warning')
+    except sqlite3.IntegrityError:
+        flash('Erro de integridade ao excluir usuário.', 'danger')
+
+    return redirect(url_for('usuarios_pendentes'))
+
+@app.route('/usuarios/<int:user_id>/admin', methods=['POST'])
+def toggle_admin(user_id):
+    """Alterna status de administrador"""
+    if not session.get('is_admin'):
+        flash('Acesso não autorizado.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute('SELECT is_admin FROM users WHERE id = ?', (user_id,))
+        result = c.fetchone()
+
+        if result:
+            new_status = 0 if result['is_admin'] == 1 else 1
+            c.execute('UPDATE users SET is_admin = ? WHERE id = ?', (new_status, user_id))
+            conn.commit()
+            flash('Usuário agora é um administrador.' if new_status else 'Privilégios de administrador removidos.', 
+                  'success' if new_status else 'info')
+        else:
+            flash('Usuário não encontrado.', 'danger')
+
+    return redirect(url_for('usuarios_ativos')) 
+
+# ==============================================================
+# ROTAS DO ALPHAFOLD (UPLOAD E PROCESSAMENTO)
+# ==============================================================
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    """Processa upload de arquivos para o AlphaFold"""
+    if 'user_id' not in session:
+        flash('Por favor, faça login primeiro.', 'warning')
+        return redirect(url_for('login'))
+
+    if 'file' not in request.files:
+        return 'No file part'
+
+    file = request.files['file']
+    if file.filename == '':
+        return 'No selected file'
+
+    if file and file.filename.endswith('.json'):
+        filename = file.filename
+        base_name = filename.rsplit('.', 1)[0]
+
+        # Cria diretórios de entrada e saída
+        input_subdir = os.path.join(ALPHAFOLD_INPUT_BASE, base_name)
+        output_subdir = os.path.join(ALPHAFOLD_OUTPUT_BASE, base_name)
+        os.makedirs(input_subdir, exist_ok=True)
+        os.makedirs(output_subdir, exist_ok=True)
+
+        # Salva o arquivo
+        input_file_path = os.path.join(input_subdir, filename)
+        file.save(input_file_path)
+
+        # Valida o JSON (comentado por enquanto)
+        # validado, mensagem = validar_json_input(input_file_path)
+        # if not validado:
+        #     flash(mensagem)
+        #     return redirect(url_for('dashboard'))
+
+        # Executa o AlphaFold via Docker
+        command = (
+            f"docker run -it "
+            f"--volume {ALPHAFOLD_INPUT_BASE}:/root/af_input "
+            f"--volume {ALPHAFOLD_OUTPUT_BASE}:/root/af_output "
+            f"--volume {ALPHAFOLD_PARAMS}:/root/models "
+            f"--volume {ALPHAFOLD_DB}:/root/public_databases "
+            f"--gpus all alphafold3 "
+            f"python run_alphafold.py "
+            f"--json_path=/root/af_input/{base_name}/{filename} "
+            f"--output_dir=/root/af_output/{base_name}"
+        )
+        subprocess.run(command, shell=True)
+
+        # Retorna o resultado ou mensagem de erro
+        result_file = os.path.join(output_subdir, 'predicted.pdb')
+        if os.path.exists(result_file):
+            return send_from_directory(output_subdir, 'predicted.pdb')
+        return 'Prediction failed or output not generated.'
+
+    return 'Invalid file format'
+
+# ==============================================================
+# FUNÇÕES DE CONTEXTO E INICIALIZAÇÃO
+# ==============================================================
+@app.before_request
+def before_request():
+    """Define variáveis globais antes de cada requisição"""
+    g.nome_usuario = session.get('user_name', 'Usuário')
+
+@app.context_processor
+def inject_user():
+    """Injeta variáveis em todos os templates"""
+    return dict(nome_usuario=g.nome_usuario)
 
 if __name__ == '__main__':
     init_db()

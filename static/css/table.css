@@ -26,3 +26,8 @@
     background-color: #e9ecef; /* Cor mais escura para o cabeçalho */
     color: #495057; /* Cor escura para o texto do cabeçalho */
 }
+
+/* Estilo para a tabela com borda */
+.table-bordered td, .table-bordered th {
+    border: 1px solid #ddd; /* Borda sutil */
+}

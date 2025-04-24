@@ -6,10 +6,19 @@
         <td>{{ user[1] }}</td>  <!-- Nome do usuário -->
         <td>{{ user[2] }}</td>  <!-- Email do usuário -->
         <td class="text-center">
-            <!-- Formulário para desativar o usuário -->
-            <form method="POST" action="{{ url_for('inativar_usuario', user_id=user[0]) }}">
-                <button type="submit">Desativar</button>
-            </form>
+            <div class="d-flex justify-content-center gap-2">
+                <!-- Formulário para desativar o usuário -->
+                <form method="POST" action="{{ url_for('inativar_usuario', user_id=user[0]) }}">
+                    <button type="submit" class="btn-sm btn-uniform">Desativar</button>
+                </form>
+                <form method="POST" action="{{ url_for('toggle_admin', user_id=user[0]) }}">                    
+                    {% if user[3] == 1 %}
+                        <button type="submit" class="btn btn-warning btn-sm btn-uniform">Remover Admin</button>
+                    {% else %}
+                        <button type="submit" class="btn btn-success btn-sm btn-uniform">Tornar Admin</button>
+                    {% endif %}
+                </form>
+            </div>
         </td>
     </tr>
     {% endfor %}

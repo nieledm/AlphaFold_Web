@@ -21,7 +21,3 @@
     background-color: #0056b3; /* Cor do botão ao passar o mouse */
 }
 
-/* Estilo para a tabela com borda */
-.table-bordered td, .table-bordered th {
-    border: 1px solid #ddd; /* Borda sutil */
-}
