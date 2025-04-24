@@ -1,0 +1,27 @@
+/* Estilo para a barra de pesquisa */
+.search-box {
+    border-radius: 25px; /* Bordas arredondadas */
+    padding: 10px 20px; /* Maior espaçamento interno */
+    font-size: 14px;
+    border: 1px solid #ccc; /* Borda suave */
+}
+
+.search-btn {
+    background-color: #007bff; /* Cor de fundo do botão */
+    color: white;
+    border-radius: 25px;
+    padding: 10px 20px;
+    margin-left: 10px;
+    font-weight: bold;
+    border: none;
+    transition: background-color 0.3s;
+}
+
+.search-btn:hover {
+    background-color: #0056b3; /* Cor do botão ao passar o mouse */
+}
+
+/* Estilo para a tabela com borda */
+.table-bordered td, .table-bordered th {
+    border: 1px solid #ddd; /* Borda sutil */
+}

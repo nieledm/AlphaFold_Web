@@ -1,0 +1,30 @@
+{# templates/base_usuarios.html #}
+{% extends 'base.html' %}
+
+{% block content %}
+  <h1 class="text-center my-4">{{ titulo }}</h1>
+
+  <!-- Barra de pesquisa -->
+  <form method="GET" action="{{ url_busca }}" class="mb-4">
+      <div class="input-group">
+          <input type="text" class="form-control search-box" name="search" value="{{ search_query }}" placeholder="Buscar por nome ou email">
+          <button class="btn search-btn" type="submit">Buscar</button>
+      </div>
+  </form>      
+
+  <!-- Tabela de usuários -->
+  <div class="table-responsive">
+      <table class="table table-bordered table-hover">
+          <thead class="table-light">
+              <tr>
+                  <th>Nome</th>
+                  <th>Email</th>
+                  <th class="text-center">Ações</th>
+              </tr>
+          </thead>
+          <tbody>
+              {% block tabela_usuarios %}{% endblock %}
+          </tbody>
+      </table>
+  </div>
+{% endblock %}

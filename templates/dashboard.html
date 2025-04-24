@@ -1,17 +1,13 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="container mt-5">
-    <h2>Olá, {{ session['user_name'] }}! {% if session['is_admin'] %}<span class="badge bg-danger">Admin</span>{% endif %}</h2>
-    
-    {% if session['is_admin'] %}
-        {% include 'navegacao.html' %}
-    {% endif %}
+    <!-- <h2>Olá, {{ session['user_name'] }}! {% if session['is_admin'] %}<span class="badge bg-danger">Admin</span>{% endif %}</h2> -->
 
-    <div class="card mt-4">
+    <div class="card align-items-center mt-4">
         <div class="card-body">
-            <h5 class="card-title">Upload file for AlphaFold</h5>
+            <h5 class="card-title text-center mb-5">Upload file para o AlphaFold</h5>
             <form action="/upload" method="POST" enctype="multipart/form-data">
-                <label for="file">Choose a JSON file:</label>
+                <label for="file">Escolha um arquivo JSON:</label>
                 <input type="file" name="file" accept=".json" required>
                 <input type="submit" value="Upload">
             </form>            

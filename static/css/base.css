@@ -1,0 +1,14 @@
+body {
+    /* background: linear-gradient(135deg, #1abc9c, #16a085); */
+    background: linear-gradient(to bottom, #ffffff, #f3f3f3);
+    min-height: 100vh;
+    color: #333;
+}
+a {
+    color: #2a7aaf;
+    text-decoration: none; /* tira o sublinhado */
+  }
+  
+  a:hover {
+    color: #3498db; /* muda a cor no hover */
+  }

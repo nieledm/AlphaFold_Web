@@ -1,57 +1,14 @@
-<style>
-    .btn-nav {
-        background-color: #2e7d32; /* Verde escuro */
-        color: #ffffff;
-        border: 2px solid #ffffff;
-        border-radius: 6px;
-        transition: all 0.3s ease;
-        padding: 8px 16px;
-        min-width: 180px;
-        text-align: center;
-        font-weight: 500;
-    }
 
-    .btn-nav:hover:not(.disabled) {
-        background-color: #1b5e20; /* um tom mais escuro no hover */
-        color: #ffffff;
-    }
-
-    .btn-nav.active,
-    .btn-nav.disabled {
-        background-color: #ffffff;
-        color: #2e7d32;
-        border-color: #ffffff;
-        font-weight: bold;
-        pointer-events: none;
-        opacity: 0.8;
-    }
-</style>
 <div class="d-flex justify-content-around gap-2 mb-4 flex-wrap sticky-top pt-3 pb-2" style="z-index: 10;">
     <a href="{{ url_for('dashboard') }}"
-       class="btn btn-nav {% if active_page == 'dashboard' %}disabled active pointer-events-none{% endif %}"
-       tabindex="{% if active_page == 'dashboard' %}-1{% else %}0{% endif %}"
-       aria-disabled="{% if active_page == 'dashboard' %}true{% else %}false{% endif %}">
-       Dashboard
-    </a>
+       class="btn btn-nav {% if active_page == 'dashboard' %}active disabled{% endif %}">Dashboard</a>
 
     <a href="{{ url_for('usuarios_ativos') }}"
-       class="btn btn-nav {% if active_page == 'ativos' %}disabled active pointer-events-none{% endif %}"
-       tabindex="{% if active_page == 'ativos' %}-1{% else %}0{% endif %}"
-       aria-disabled="{% if active_page == 'ativos' %}true{% else %}false{% endif %}">
-       Usuários Ativos
-    </a>
+       class="btn btn-nav {% if active_page == 'ativos' %}active disabled{% endif %}">Usuários Ativos</a>
 
     <a href="{{ url_for('usuarios_pendentes') }}"
-       class="btn btn-nav {% if active_page == 'pendentes' %}disabled active pointer-events-none{% endif %}"
-       tabindex="{% if active_page == 'pendentes' %}-1{% else %}0{% endif %}"
-       aria-disabled="{% if active_page == 'pendentes' %}true{% else %}false{% endif %}">
-       Usuários Pendentes
-    </a>
+       class="btn btn-nav {% if active_page == 'pendentes' %}active disabled{% endif %}">Usuários Pendentes</a>
 
     <a href="{{ url_for('usuarios_desativados') }}"
-       class="btn btn-nav {% if active_page == 'desativados' %}disabled active pointer-events-none{% endif %}"
-       tabindex="{% if active_page == 'desativados' %}-1{% else %}0{% endif %}"
-       aria-disabled="{% if active_page == 'desativados' %}true{% else %}false{% endif %}">
-       Usuários Desativados
-    </a>
+       class="btn btn-nav {% if active_page == 'desativados' %}active disabled{% endif %}">Usuários Desativados</a>
 </div>

@@ -1,0 +1,27 @@
+.btn-nav {
+    background-color: #016867;
+    color: #ffffff;
+    border: 2px solid #ffffff;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+    padding: 8px 16px;
+    min-width: 180px;
+    text-align: center;
+    font-weight: 500;
+    margin-top: 0;
+}
+
+.btn-nav:hover:not(.disabled) {
+    background-color: #012e2d; /* um tom mais escuro no hover */
+    color: #ffffff;
+}
+
+.btn-nav.active,
+.btn-nav.disabled {
+    background-color: #ffffff;
+    color: #07b4b1;
+    border-color: #ffffff;
+    font-weight: bold;
+    pointer-events: none;
+    opacity: 0.8;
+}

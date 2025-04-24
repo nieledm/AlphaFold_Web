@@ -1,0 +1,28 @@
+/* Estilo para a tabela */
+.table {
+    background-color: #f9f9f9; /* Fundo claro para a tabela */
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.table-bordered {
+    border: 1px solid #ddd; /* Borda sutil */
+}
+
+.table-hover tbody tr:hover {
+    background-color: #f1f1f1; /* Cor ao passar o mouse */
+}
+
+.table th, .table td {
+    padding: 10px;
+    text-align: left;
+}
+
+.table-light {
+    background-color: #f8f9fa; /* Cor de fundo para o cabeçalho */
+}
+
+.table th {
+    background-color: #e9ecef; /* Cor mais escura para o cabeçalho */
+    color: #495057; /* Cor escura para o texto do cabeçalho */
+}

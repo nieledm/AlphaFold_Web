@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, flash, request, send_from_directory, session
+from flask import Flask, render_template, redirect, url_for, flash, request, send_from_directory, session, g
 import os
 import subprocess
 import json
@@ -210,6 +210,18 @@ def inativar_usuario(user_id):
         conn.commit()
     flash('Usuário desativado com sucesso!', 'warning')
     return redirect(url_for('admin_usuarios'))
+
+#########################################################################
+################## PASSANDO O NOME DO USUÁRIO LOGADO ####################
+#########################################################################
+@app.before_request
+def before_request():
+    # Define o nome do usuário globalmente
+    g.nome_usuario = session.get('user_name', 'Usuário')
+
+@app.context_processor
+def inject_user():
+    return dict(nome_usuario=g.nome_usuario)
 
 #########################################################################
 ################## DOCKER + UPLOAD + VALIDAÇÃO JSON #####################

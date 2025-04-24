@@ -1,0 +1,57 @@
+body {
+    background: linear-gradient(135deg, #1abc9c, #16a085);
+    min-height: 100vh;
+    color: white;
+  }
+  .card {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: none;
+    border-radius: 1rem;
+    box-shadow: 0 0 20px rgba(0,0,0,0.2);
+    padding: 2rem;
+    color: white;
+  }
+  a {
+    color: #ecf0f1;
+  }
+
+  /* Custom styling for alerts */
+  .alert {
+    margin-top: 20px;
+    font-size: 1.1rem;
+    border-radius: 1rem;
+  }
+
+  .close {
+    font-size: 1.5rem;
+    opacity: 1;
+    color: inherit;
+  }
+
+  .custom-outline {
+      background-color: white;
+      color: black;
+      border: 1px solid black;
+      border-left: none; /* remove a divisória entre input e botão */
+  }
+
+  .custom-outline:hover {
+      background-color: #f0f0f0;
+  }
+
+  .search-btn {
+      background-color: white;
+      color: black;
+      border: 1px solid black;
+      border-left: none;
+      z-index: 2;
+  }
+
+  .search-btn:hover {
+      background-color: #f0f0f0;
+  }
+
+  .search-box {
+      border: 1px solid black;
+      z-index: 1;
+  }
