@@ -1,0 +1,128 @@
+<script>
+    const sequenceHelp = document.getElementById('sequenceHelp');
+    const entityType = document.getElementById('entityType');
+    const sequenceField = document.getElementById('sequence');
+  
+    const examples = {
+      protein: {
+        seq: "MVQDTGKDTNLKGTAEANESVVYCDVFMQAALKEATCALEEGEVPVGCVLVKADSSTAAQAQAGDDLALQKLIVARGRNATNRKGHGLAHAEFVAVEELLRQATAGTSENIGGGGNSGAVSQDLADYVLYVVVEPCIMCAAMLLYNRVRKVYFGCTNPRFGGNGTVLSVHNSYKGCSGEDAALIGYESCGGYRAEEAVVLLQQFYRRENTNAPLGKRKRKD",
+        warn: "A sequência deve conter apenas letras. Caracteres inválidos: B, J, O, U, X, Z."
+      },
+      dna: {
+        seq: "ATGCGTACGTAGCTAGCTAGCTAGCTAGCTAGCTA",
+        warn: "A sequência deve conter apenas A, T, C e G."
+      },
+      rna: {
+        seq: "AUGCGUACGUAGCUAGCUAGCUAGCUAGCUAGCUA",
+        warn: "A sequência deve conter apenas A, U, C e G."
+      },
+      ligand: {
+        seq: "CC(=O)OC1=CC=CC=C1C(=O)O", // ácido acetilsalicílico (aspirina)
+        warn: "Insira o SMILES da molécula ligante (formato texto)."
+      },
+      ion: {
+        seq: "Na+", 
+        warn: "Insira o símbolo do íon, como Na+, K+, Mg2+, etc."
+      }
+    };
+  
+    entityType.addEventListener('change', function () {
+      const selected = this.value;
+      if (examples[selected]) {
+        sequenceField.value = examples[selected].seq;
+        sequenceHelp.textContent = examples[selected].warn;
+        sequenceHelp.style.display = 'block';
+      } else {
+        sequenceHelp.style.display = 'none';
+      }
+    });
+  
+    document.getElementById('jsonForm').addEventListener('submit', function (e) {
+      const selected = entityType.value;
+      const seq = sequenceField.value.toUpperCase();
+  
+      let invalid = false;
+      if (selected === 'protein' && /[BJOUXZ]/.test(seq)) invalid = true;
+      if (selected === 'dna' && /[^ATCG]/i.test(seq)) invalid = true;
+      if (selected === 'rna' && /[^AUCG]/i.test(seq)) invalid = true;
+  
+      if (invalid) {
+        e.preventDefault();
+        alert("A sequência contém caracteres inválidos. Corrija antes de continuar.");
+      }
+    });
+  
+    function addMSABlock() {
+    const index = document.querySelectorAll('.msa-block').length;
+    const container = document.createElement('div');
+    container.className = 'msa-block mb-3 p-3 border rounded bg-light position-relative';
+    container.innerHTML = `
+      <button class="btn-close position-absolute top-0 end-0 m-2" 
+              onclick="removeMSABlock(this)" 
+              aria-label="Remover bloco"></button>
+      <label class="form-label">Formato do MSA:</label>
+      <input type="text" name="msa_format_${index}" class="form-control mb-2" placeholder="Ex: a3m">
+  
+      <label class="form-label">Dados do MSA (1 sequência por linha):</label>
+      <textarea name="msa_data_${index}" rows="4" class="form-control" placeholder=">seq1\nACGT..."></textarea>
+    `;
+    document.getElementById('msa-blocks').appendChild(container);
+  }
+  
+  function removeMSABlock(closeButton) {
+    const block = closeButton.closest('.msa-block');
+    block.remove();
+    updateBlockIndexes(); // Atualiza a numeração dos blocos restantes
+  }
+  
+  // Atualiza os índices dos blocos restantes
+  function updateBlockIndexes() {
+    document.querySelectorAll('.msa-block').forEach((block, index) => {
+      block.querySelectorAll('[name^="msa_format_"], [name^="msa_data_"]').forEach(input => {
+        input.name = input.name.replace(/_(\d+)$/, `_${index}`);
+      });
+    });
+  }
+  
+  function toggleSection(sectionId) {
+    const el = document.getElementById(sectionId);
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  }
+  
+  function removeSection(sectionId, containerId = null) {
+    const section = document.getElementById(sectionId);
+    
+    if (section) {
+      // Remove com animação de fade (opcional)
+      section.style.transition = 'opacity 0.3s';
+      section.style.opacity = '0';
+      
+      setTimeout(() => {
+        section.remove();
+        
+        // Se foi fornecido um container pai, verifica se está vazio
+        if (containerId) {
+          const container = document.getElementById(containerId);
+          if (container && container.children.length === 0) {
+            container.innerHTML = '<p class="text-muted">Nenhuma seção adicionada</p>';
+          }
+        }
+      }, 300);
+    }
+  }
+  
+  function downloadJSON() {
+    const form = document.querySelector('form');
+    const formData = new FormData(form);
+    fetch("/generate_json", {
+      method: "POST",
+      body: formData
+    }).then(res => res.blob())
+      .then(blob => {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "input_alphafold.json";
+        a.click();
+      }).catch(err => alert("Erro ao gerar JSON: " + err));
+  }
+  </script>

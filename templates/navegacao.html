@@ -1,14 +1,52 @@
 
-<div class="d-flex justify-content-around gap-2 mb-4 flex-wrap sticky-top pt-3 pb-2" style="z-index: 10;">
-    <a href="{{ url_for('dashboard') }}"
-       class="btn btn-nav {% if active_page == 'dashboard' %}active disabled{% endif %}">Dashboard</a>
+<div class="nav-container d-flex justify-content-start gap-3 mb-4 flex-wrap pt-3 pb-2 margens" style="z-index: 10;">
+   <!-- Dropdown 1: Dashboard / Json Builder -->
+   <div class="dropdown">
+       <button class="btn btn-nav dropdown-toggle" type="button" id="dropdownMenuDashboard" data-bs-toggle="dropdown" aria-expanded="false">
+           Dashboard
+       </button>
+       <ul class="dropdown-menu" aria-labelledby="dropdownMenuDashboard">
+           <li>
+               <a href="{{ url_for('dashboard') }}" 
+                  class="dropdown-item {% if active_page == 'dashboard' %}active{% endif %}">
+                   Dashboard
+               </a>
+           </li>
+           <li>
+               <a href="{{ url_for('input_json_form') }}" 
+                  class="dropdown-item {% if active_page == 'json_builder' %}active{% endif %}">
+                   Json Builder
+               </a>
+           </li>
+       </ul>
+   </div>
 
-    <a href="{{ url_for('usuarios_ativos') }}"
-       class="btn btn-nav {% if active_page == 'ativos' %}active disabled{% endif %}">Usuários Ativos</a>
-
-    <a href="{{ url_for('usuarios_pendentes') }}"
-       class="btn btn-nav {% if active_page == 'pendentes' %}active disabled{% endif %}">Usuários Pendentes</a>
-
-    <a href="{{ url_for('usuarios_desativados') }}"
-       class="btn btn-nav {% if active_page == 'desativados' %}active disabled{% endif %}">Usuários Desativados</a>
+    <!-- Dropdown 2: Usuários -->
+    {% if session.get('is_admin') %}
+        <div class="dropdown">
+            <button class="btn btn-nav dropdown-toggle" type="button" id="dropdownMenuUsuarios" data-bs-toggle="dropdown" aria-expanded="false">
+                Usuários
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="dropdownMenuUsuarios">
+                <li>
+                    <a href="{{ url_for('usuarios_ativos') }}" 
+                        class="dropdown-item {% if active_page == 'ativos' %}active{% endif %}">
+                        Usuários Ativos
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('usuarios_pendentes') }}" 
+                        class="dropdown-item {% if active_page == 'pendentes' %}active{% endif %}">
+                        Usuários Pendentes
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('usuarios_desativados') }}" 
+                        class="dropdown-item {% if active_page == 'desativados' %}active{% endif %}">
+                        Usuários Desativados
+                    </a>
+                </li>
+            </ul>
+        </div>
+    {% endif %}
 </div>

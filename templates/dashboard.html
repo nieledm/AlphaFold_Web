@@ -13,5 +13,35 @@
             </form>            
         </div>
     </div>
+
+    <h3 class="mt-5">Seus uploads</h3>
+    <table class="table mt-3">
+        <thead>
+            <tr>
+                <th>Arquivo</th>
+                <th>Status</th>
+                <th>Data</th>
+                <th>Ação</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for upload in uploads %}
+            <tr>
+                <td>{{ upload['file_name'] }}</td>
+                <td>{{ upload['status'] }}</td>
+                <td>{{ upload['created_at'] }}</td>
+                <td>
+                    {% if upload['status'] == 'COMPLETO' %}
+                        <a href="{{ url_for('download_result', base_name=upload['base_name']) }}" class="btn btn-sm btn-success">Download</a>
+                    {% else %}
+                        <span class="text-muted">Aguardando</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+
 </div>
 {% endblock %}

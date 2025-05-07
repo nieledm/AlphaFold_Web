@@ -1,0 +1,84 @@
+/* Estilo para a página de criação do json */
+.entity-section {
+    margin-bottom: 30px;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 10px;
+}
+
+.entity-header {
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.entity-content {
+    margin-top: 15px;
+}
+.modification-item, .template-item, .bond-item {
+    background-color: white;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    border: 1px solid #dee2e6;
+}
+
+.form-section {
+    margin-bottom: 30px;
+}
+
+#jsonOutput {
+    min-height: 300px;
+    font-family: monospace;
+    white-space: pre-wrap;
+}
+
+.btn-add {
+    margin-top: 10px;
+}
+
+.tab-content {
+    padding: 20px;
+    background-color: white;
+    border-radius: 0 0 10px 10px;
+    border: 1px solid #dee2e6;
+    border-top: none;
+}
+
+.nav-tabs {
+    border-bottom: 1px solid #dee2e6;
+}
+
+.nav-link.active {
+    background-color: white;
+    border-color: #dee2e6 #dee2e6 white;
+}
+
+.form-card {
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 25px;
+    margin-bottom: 30px;
+    position: relative;
+}
+
+.form-card .card-header {
+background-color: transparent;
+border-bottom: 1px solid #e0e0e0;
+padding-bottom: 15px;
+margin-bottom: 20px;
+}
+
+.optional-section {
+background-color: #f8fafc;
+border-left: 4px solid #3b82f6;
+}
+
+.remove-card-btn {
+position: absolute;
+top: 15px;
+right: 15px;
+z-index: 10;
+}

@@ -10,6 +10,8 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import smtplib
 from smtplib import SMTP_SSL
+from threading import Thread
+
 
 app = Flask(__name__)
 app.secret_key = '#!Alph@3!' 
@@ -129,6 +131,23 @@ def send_activation_email(user_email, user_name):
     </html>
     """
     send_email(user_email, "Sua conta no AlphaFold foi ativada", html)
+
+def send_processing_complete_email(user_name, user_email, base_name):
+    """Envia e-mail ao usuário informando que o processamento foi concluído"""
+    download_url = url_for('download_result', user_id=session['user_id'], project_name=base_name, _external=True)
+    html = f"""
+    <html>
+        <body>
+            <p>Olá {user_name},</p>
+            <p>Seu processamento com o AlphaFold foi concluído com sucesso.</p>
+            <p>Você pode baixar o resultado clicando no link abaixo:</p>
+            <p><a href="{download_url}">Download do resultado</a></p>
+            <p>Obrigado por usar o sistema AlphaFold!</p>
+        </body>
+    </html>
+    """
+    send_email(user_email, "AlphaFold: Resultado disponível", html)
+
 
 # ==============================================================
 # FUNÇÕES DE VALIDAÇÃO
@@ -255,8 +274,17 @@ def dashboard():
     if 'user_id' not in session:
         flash('Por favor, faça login primeiro.', 'warning')
         return redirect(url_for('login'))
+    
+    conn = get_db_connection()
+    uploads = conn.execute(
+        "SELECT * FROM uploads WHERE user_id = ? ORDER BY created_at DESC",
+        (session['user_id'],)
+    ).fetchall()
+    conn.close()
 
-    return render_template('dashboard.html', nome_usuario=session.get('user_name', 'Usuário'))
+    return render_template('dashboard.html', nome_usuario=session.get('user_name', 'Usuário'), uploads=uploads)
+
+    
 
 @app.route('/aviso/<int:aviso_id>')
 def aviso(aviso_id):
@@ -422,8 +450,102 @@ def toggle_admin(user_id):
     return redirect(url_for('usuarios_ativos')) 
 
 # ==============================================================
-# ROTAS DO ALPHAFOLD (UPLOAD E PROCESSAMENTO)
+# ROTAS DO ALPHAFOLD (UPLOAD, PROCESSAMENTO E DOWNLOAD)
 # ==============================================================
+@app.route('/input_json_form', methods=['GET'])
+def input_json_form():
+    return render_template('input_json_form.html')
+
+@app.route('/generate_json', methods=['POST'])
+def generate_json():
+    if 'user_id' not in session:
+        flash('Por favor, faça login primeiro.', 'warning')
+        return redirect(url_for('login'))
+
+    data = request.form
+    json_data = {"inputs": []}
+
+    # === Dados principais ===
+    entity = data.get("entity", "").strip()
+    sequence = data.get("sequence", "").strip().replace("\r\n", "\n")
+    copies = int(data.get("copies", 1))
+
+    input_entry = {
+        "entity_type": entity,
+        "sequence": sequence,
+        "copies": copies
+    }
+
+    # === MSA ===
+    msa_blocks = []
+    index = 0
+    while True:
+        msa_format = data.get(f"msa_format_{index}")
+        msa_data = data.get(f"msa_data_{index}")
+        if not msa_format or not msa_data:
+            break
+        msa_blocks.append({
+            "msa_format": msa_format.strip(),
+            "msa_data": [s.strip() for s in msa_data.strip().split("\n") if s.strip()]
+        })
+        index += 1
+    if msa_blocks:
+        input_entry["msa"] = msa_blocks
+
+    # === Campos opcionais ===
+    templates = data.get("templates", "").strip()
+    if templates:
+        input_entry["templates"] = [t.strip() for t in templates.splitlines() if t.strip()]
+
+    pairing = data.get("pairing", "").strip()
+    if pairing:
+        input_entry["pairing"] = pairing
+
+    modifications = data.get("modifications", "").strip()
+    if modifications:
+        try:
+            input_entry["modifications"] = json.loads(modifications)
+        except json.JSONDecodeError:
+            return "JSON inválido em modificações", 400
+
+    coordinates = data.get("coordinates", "").strip()
+    if coordinates:
+        try:
+            input_entry["coordinates"] = json.loads(coordinates)
+        except json.JSONDecodeError:
+            return "JSON inválido em coordinates", 400
+
+    masked_regions = data.get("masked_regions", "").strip()
+    if masked_regions:
+        try:
+            input_entry["masked_regions"] = json.loads(masked_regions)
+        except json.JSONDecodeError:
+            return "JSON inválido em masked_regions", 400
+
+    json_data["inputs"].append(input_entry)
+
+    # === Salvar arquivo temporário ===
+    with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.json') as tmpfile:
+        json.dump(json_data, tmpfile, indent=2)
+        tmpfile_path = tmpfile.name
+        tmpfile_name = os.path.basename(tmpfile_path)
+
+    # === Upload automático para /upload ===
+    with open(tmpfile_path, 'rb') as f:
+        upload_response = requests.post(
+            url_for('upload_file', _external=True),
+            files={'file': (tmpfile_name, f, 'application/json')},
+            cookies=request.cookies  # passa os cookies para manter a sessão
+        )
+
+    if upload_response.status_code == 302:  # redirecionamento com sucesso
+        flash("Arquivo gerado e enviado com sucesso!", "success")
+    else:
+        flash("Erro ao enviar o arquivo gerado para processamento.", "danger")
+
+    # === Retorna para download (caso deseje salvar também) ===
+    return send_file(tmpfile_path, mimetype='application/json', as_attachment=True, download_name='input_alphafold.json')
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     """Processa upload de arquivos para o AlphaFold"""
@@ -442,23 +564,26 @@ def upload_file():
         filename = file.filename
         base_name = filename.rsplit('.', 1)[0]
 
-        # Cria diretórios de entrada e saída
+        # Cria diretórios
         input_subdir = os.path.join(ALPHAFOLD_INPUT_BASE, base_name)
         output_subdir = os.path.join(ALPHAFOLD_OUTPUT_BASE, base_name)
         os.makedirs(input_subdir, exist_ok=True)
         os.makedirs(output_subdir, exist_ok=True)
 
-        # Salva o arquivo
+        # Salva arquivo
         input_file_path = os.path.join(input_subdir, filename)
         file.save(input_file_path)
 
-        # Valida o JSON (comentado por enquanto)
-        # validado, mensagem = validar_json_input(input_file_path)
-        # if not validado:
-        #     flash(mensagem)
-        #     return redirect(url_for('dashboard'))
+        # Salva no banco
+        conn = get_db_connection()
+        conn.execute(
+            'INSERT INTO uploads (user_id, file_name, base_name, status) VALUES (?, ?, ?, ?)',
+            (session['user_id'], filename, base_name, 'PROCESSANDO')
+        )
+        conn.commit()
+        conn.close()
 
-        # Executa o AlphaFold via Docker
+        # Monta comando e roda em background
         command = (
             f"docker run -it "
             f"--volume {ALPHAFOLD_INPUT_BASE}:/root/af_input "
@@ -470,15 +595,42 @@ def upload_file():
             f"--json_path=/root/af_input/{base_name}/{filename} "
             f"--output_dir=/root/af_output/{base_name}"
         )
-        subprocess.run(command, shell=True)
 
-        # Retorna o resultado ou mensagem de erro
-        result_file = os.path.join(output_subdir, 'predicted.pdb')
-        if os.path.exists(result_file):
-            return send_from_directory(output_subdir, 'predicted.pdb')
-        return 'Prediction failed or output not generated.'
+        Thread(target=run_alphafold_in_background, args=(
+            command, output_subdir, session['user_name'], session['user_email'], base_name
+        )).start()
+
+        flash("Arquivo enviado. Você será notificado quando o processamento terminar.", 'info')
+        return redirect(url_for('dashboard'))
 
     return 'Invalid file format'
+
+def run_alphafold_in_background(command, output_subdir, user_name, user_email, base_name):
+    subprocess.run(command, shell=True)
+    result_file = os.path.join(output_subdir, 'predicted.pdb')
+
+    conn = get_db_connection()
+    if os.path.exists(result_file):
+        # Atualiza status para COMPLETO
+        conn.execute("UPDATE uploads SET status = ? WHERE base_name = ?", ('COMPLETO', base_name))
+        send_processing_complete_email(user_name, user_email, base_name)
+    else:
+        conn.execute("UPDATE uploads SET status = ? WHERE base_name = ?", ('ERRO', base_name))
+        send_email(user_email, "Erro no processamento do AlphaFold", f"<p>Olá {user_name},</p><p>Ocorreu um erro e o arquivo de resultado não foi gerado.</p>")
+    conn.commit()
+    conn.close()
+
+@app.route('/download/<base_name>')
+def download_result(base_name):
+    """Permite download do arquivo processado se pronto"""
+    output_dir = os.path.join(ALPHAFOLD_OUTPUT_BASE, base_name)
+    file_path = os.path.join(output_dir, 'predicted.pdb')
+    if os.path.exists(file_path):
+        return send_from_directory(output_dir, 'predicted.pdb', as_attachment=True)
+    else:
+        flash('Arquivo não encontrado ou ainda não gerado.', 'danger')
+        return redirect(url_for('dashboard'))
+
 
 # ==============================================================
 # FUNÇÕES DE CONTEXTO E INICIALIZAÇÃO

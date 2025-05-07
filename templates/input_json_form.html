@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/json.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-lg-10">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Criar entrada para AlphaFold</h2>
+        <button type="button" class="btn btn-outline-secondary" onclick="addNewCard()">
+          <i class="fas fa-plus me-2"></i>Adicionar Entidade
+        </button>
+      </div>
+
+      <div id="cards-container">
+        <!-- Card padrão (primeira entidade) -->
+        <div class="form-card" id="card-1">
+          <button class="btn btn-sm remove-card-btn" onclick="removeCard('card-1')">
+            <i class="fas fa-times"></i>
+          </button>
+          
+          <div class="card-header">
+            <h5 class="mb-0">Entidade #1</h5>
+          </div>
+
+          <form class="entity-form">
+            <!-- Container principal com os campos básicos -->
+            <div class="mb-4">
+              <div class="row g-3">
+                <!-- Entidade -->
+                <div class="col-md-3">
+                  <label for="entityType-1" class="form-label">Entidade</label>
+                  <select class="form-select entity-type" id="entityType-1" name="entity_type" required>
+                    <option value="" selected disabled>Selecione</option>
+                    <option value="protein">Proteína</option>
+                    <option value="dna">DNA</option>
+                    <option value="rna">RNA</option>
+                    <option value="ligand">Ligante</option>
+                    <option value="ion">Íon</option>
+                  </select>
+                </div>
+                
+                <!-- Número de cópias -->
+                <div class="col-md-2">
+                  <label for="copies-1" class="form-label">Cópias</label>
+                  <input type="number" class="form-control copies" id="copies-1" name="copies" min="1" max="10" value="1" required>
+                </div>
+                
+                <!-- Sequência -->
+                <div class="col-md-7">
+                  <label for="sequence-1" class="form-label">Sequência</label>
+                  <textarea class="form-control sequence" id="sequence-1" name="sequence" rows="3" required></textarea>
+                  <div class="sequence-help form-text text-danger mt-1" style="display: none;"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Botão de opções -->
+            <div class="dropdown mb-4">
+              <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="fas fa-cog me-2"></i> Opções Avançadas
+              </button>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="#" onclick="addMSABlock(this); return false;"><i class="fas fa-layer-group me-2"></i>Adicionar MSA</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="#" onclick="toggleSection(this, 'templates'); return false;"><i class="fas fa-copy me-2"></i>Adicionar Templates</a></li>
+                <li><a class="dropdown-item" href="#" onclick="toggleSection(this, 'pairing'); return false;"><i class="fas fa-link me-2"></i>Adicionar Pairing</a></li>
+                <li><a class="dropdown-item" href="#" onclick="toggleSection(this, 'modifications'); return false;"><i class="fas fa-atom me-2"></i>Adicionar Modificações</a></li>
+                <li><a class="dropdown-item" href="#" onclick="toggleSection(this, 'coordinates'); return false;"><i class="fas fa-map-marker-alt me-2"></i>Adicionar Coordenadas</a></li>
+                <li><a class="dropdown-item" href="#" onclick="toggleSection(this, 'masked'); return false;"><i class="fas fa-mask me-2"></i>Adicionar Regiões Mascaradas</a></li>
+              </ul>
+            </div>
+
+            <!-- Blocos de MSA -->
+            <div class="msa-blocks mb-3"></div>
+
+            <!-- Seções opcionais -->
+            <div class="optional-sections">
+              <!-- Templates -->
+              <div class="optional-section templates-section mb-3 p-4 border rounded position-relative" style="display: none;">
+                <button class="btn-close position-absolute top-0 end-0 m-2" onclick="removeSection(this)"></button>
+                <label class="form-label fw-bold">Templates (1 por linha):</label>
+                <textarea class="form-control mt-2" name="templates" rows="3" placeholder="Ex: 1abc_A"></textarea>
+              </div>
+
+              <!-- Pairing -->
+              <div class="optional-section pairing-section mb-3 p-4 border rounded position-relative" style="display: none;">
+                <button class="btn-close position-absolute top-0 end-0 m-2" onclick="removeSection(this)"></button>
+                <label class="form-label fw-bold">Pairing:</label>
+                <input type="text" class="form-control mt-2" name="pairing" placeholder="Ex: symmetric">
+              </div>
+
+              <!-- Modificações -->
+              <div class="optional-section modifications-section mb-3 p-4 border rounded position-relative" style="display: none;">
+                <button class="btn-close position-absolute top-0 end-0 m-2" onclick="removeSection(this)"></button>
+                <label class="form-label fw-bold">Modificações (JSON):</label>
+                <textarea class="form-control mt-2" name="modifications" rows="4" placeholder='Ex: [{"position": 3, "type": "phosphorylation"}]'></textarea>
+              </div>
+
+              <!-- Coordenadas -->
+              <div class="optional-section coordinates-section mb-3 p-4 border rounded position-relative" style="display: none;">
+                <button class="btn-close position-absolute top-0 end-0 m-2" onclick="removeSection(this)"></button>
+                <label class="form-label fw-bold">Coordenadas (JSON):</label>
+                <textarea class="form-control mt-2" name="coordinates" rows="4" placeholder='Ex: {"residue": 25, "x": 1.0, "y": 2.0, "z": 3.0}'></textarea>
+              </div>
+
+              <!-- Regiões Mascaradas -->
+              <div class="optional-section masked-section mb-3 p-4 border rounded position-relative" style="display: none;">
+                <button class="btn-close position-absolute top-0 end-0 m-2" onclick="removeSection(this)"></button>
+                <label class="form-label fw-bold">Regiões Mascaradas (JSON):</label>
+                <textarea class="form-control mt-2" name="masked_regions" rows="4" placeholder='Ex: [{"start": 10, "end": 20}]'></textarea>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Botões de ação globais -->
+      <div class="d-flex justify-content-end gap-3 mt-4">
+        <button type="button" class="btn btn-outline-secondary" onclick="downloadAllJSON()">
+          <i class="fas fa-download me-2"></i>Download Todos JSON
+        </button>
+        <button type="button" class="btn btn-primary" onclick="processAllEntities()">
+          <i class="fas fa-play me-2"></i>Processar Todas Entidades
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/alphafold-form.js') }}"></script>
+{% endblock %}
