@@ -5,12 +5,15 @@
 {% endblock %}
 
 {% block content %}
-<div class="container">
-  <div class="row justify-content-center">
+<div class="container top-spacing-reduced">
+  <div class="row justify-content-center">   
     <div class="col-lg-10">
-      <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="mb-0">Criar entrada para AlphaFold</h2>
-        <button type="button" class="btn btn-outline-secondary" onclick="addNewCard()">
+      <div class="title-container">
+        <h2 class="page-title">
+          <span class="title-highlight">Construtor de Inputs</span>
+          <span class="title-sub">para AlphaFold</span>
+        </h2>
+        <button type="button" class="btn btn-primary btn-add-entity" onclick="addNewCard()">
           <i class="fas fa-plus me-2"></i>Adicionar Entidade
         </button>
       </div>
@@ -23,37 +26,48 @@
           </button>
           
           <div class="card-header">
-            <h5 class="mb-0">Entidade #1</h5>
+            <h5 class="mb-0 mt=1">Entidade #1</h5>
           </div>
 
           <form class="entity-form">
             <!-- Container principal com os campos básicos -->
             <div class="mb-4">
-              <div class="row g-3">
-                <!-- Entidade -->
-                <div class="col-md-3">
-                  <label for="entityType-1" class="form-label">Entidade</label>
-                  <select class="form-select entity-type" id="entityType-1" name="entity_type" required>
-                    <option value="" selected disabled>Selecione</option>
-                    <option value="protein">Proteína</option>
-                    <option value="dna">DNA</option>
-                    <option value="rna">RNA</option>
-                    <option value="ligand">Ligante</option>
-                    <option value="ion">Íon</option>
-                  </select>
+              <div class="row g-3 align-items-stretch">
+                <!-- Coluna da esquerda -->
+                <div class="col-md-3 d-flex flex-column justify-content-between">
+                  <!-- Entidade -->
+                  <div>
+                    <label for="entityType-1" class="form-label mb-0">Entidade</label>
+                    <select class="form-select entity-type" id="entityType-1" name="entity_type" required>
+                      <option value="" selected disabled>Selecione</option>
+                      <option value="protein">Proteína</option>
+                      <option value="dna">DNA</option>
+                      <option value="rna">RNA</option>
+                      <option value="ligand">Ligante</option>
+                      <option value="ion">Íon</option>
+                    </select>
+                  </div>
+            
+                  <!-- Número de cópias -->
+                  <div>
+                    <label for="copies-1" class="form-label mt-2 mb-0">Cópias</label>
+                    <input type="number" class="form-control copies" id="copies-1" name="copies" min="1" max="10" value="1" required>
+                  </div>
+            
+                  <!-- Model Seeds -->
+                  <div>
+                    <label for="seeds-1" class="form-label mt-2 mb-0">Model Seeds</label>
+                    <input type="number" class="form-control seeds" id="seeds-1" name="seeds" min="1" max="10" value="1" required>
+                  </div>
                 </div>
-                
-                <!-- Número de cópias -->
-                <div class="col-md-2">
-                  <label for="copies-1" class="form-label">Cópias</label>
-                  <input type="number" class="form-control copies" id="copies-1" name="copies" min="1" max="10" value="1" required>
-                </div>
-                
-                <!-- Sequência -->
-                <div class="col-md-7">
-                  <label for="sequence-1" class="form-label">Sequência</label>
-                  <textarea class="form-control sequence" id="sequence-1" name="sequence" rows="3" required></textarea>
-                  <div class="sequence-help form-text text-danger mt-1" style="display: none;"></div>
+            
+                <!-- Coluna da direita -->
+                <div class="col-md-9 d-flex flex-column">
+                  <label for="sequence-1" class="form-label mb-0">Sequência</label>
+                  <div class="flex-grow-1 d-flex flex-column">
+                    <textarea class="form-control sequence flex-grow-1" id="sequence-1" name="sequence" required></textarea>
+                    <div class="sequence-help form-text text-danger mt-1" style="display: none;"></div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -119,19 +133,25 @@
       </div>
 
       <!-- Botões de ação globais -->
-      <div class="d-flex justify-content-end gap-3 mt-4">
-        <button type="button" class="btn btn-outline-secondary" onclick="downloadAllJSON()">
-          <i class="fas fa-download me-2"></i>Download Todos JSON
+      <div class="builder-container d-flex justify-content-end gap-3 mt-4">
+        <button type="button" class="btn btn-download" onclick="downloadAllJSON()">
+          <i class="fas fa-download me-0.3"></i>Download
         </button>
-        <button type="button" class="btn btn-primary" onclick="processAllEntities()">
-          <i class="fas fa-play me-2"></i>Processar Todas Entidades
+        <button type="button" class="btn btn-process" onclick="ProcessJSON()">
+          <i class="fas fa-play me-0.3"></i>Processar
+        </button>
+        <button type="button" class="btn btn-download-process" onclick="downloadAndProcessJSON()">
+          Download e processar
         </button>
       </div>
+
+
+      
     </div>
   </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/alphafold-form.js') }}"></script>
+<script src="{{ url_for('static', filename='js/builder_json_form.js') }}"></script>
 {% endblock %}

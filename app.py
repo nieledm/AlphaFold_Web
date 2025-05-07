@@ -452,9 +452,9 @@ def toggle_admin(user_id):
 # ==============================================================
 # ROTAS DO ALPHAFOLD (UPLOAD, PROCESSAMENTO E DOWNLOAD)
 # ==============================================================
-@app.route('/input_json_form', methods=['GET'])
-def input_json_form():
-    return render_template('input_json_form.html')
+@app.route('/builder_json_form', methods=['GET'])
+def builder_json_form():
+    return render_template('builder_json_form.html')
 
 @app.route('/generate_json', methods=['POST'])
 def generate_json():

@@ -5,15 +5,16 @@ body {
     color: #333;
 }
 a {
-    color: #2a7aaf;
-    text-decoration: none; /* tira o sublinhado */
-  }
+  color: #2a7aaf;
+  text-decoration: none; /* tira o sublinhado */
+}
+
+a:hover {
+  color: #3498db; /* muda a cor no hover */
+}
+
+
+.btn-uniform {
+    width: 120px;
+}
   
-  a:hover {
-    color: #3498db; /* muda a cor no hover */
-  }
-
-
-  .btn-uniform {
-      width: 120px; /* ou qualquer largura que você achar boa */
-  }
