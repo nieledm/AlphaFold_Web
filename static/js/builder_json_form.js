@@ -46,7 +46,7 @@ function addNewCard() {
     </button>
     
     <div class="card-header">
-      <h5 class="mb-0 mt=1">Entidade #${cardCounter}</h5>
+      <h5 class="mb-0 mt=1">Entidade ${cardCounter}</h5>
     </div>
 
     <form class="entity-form">
@@ -556,7 +556,17 @@ function generateAndValidateJSON() {
   return jsonData;
 }
 
-function downloadJSON(jsonData, filename = 'alphafold_input.json') {
+function downloadJSON(jsonData, baseFilename = 'alphafold_input') {
+  const now = new Date();
+  const timestamp = now.toISOString()
+    .replace(/[:.]/g, '-')  // Substitui : e . por -
+    .replace('T', '_')      // Substitui T por _
+    .slice(0, 19);          // Pega YYYY-MM-DD_HH-MM-SS
+  
+  // Cria o nome do arquivo com timestamp
+  const filename = `${baseFilename}_${timestamp}.json`;
+
+  //criar o blob para download
   const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
 
@@ -579,6 +589,7 @@ function ProcessJSON() {
   const jsonData = generateAndValidateJSON();
   if (!jsonData) return;
 
+  // Session Storage para transferencia do arquivo JSON gerado
   sessionStorage.setItem('alphafoldJsonData', JSON.stringify(jsonData));
   window.location.href = '/dashboard';
 }

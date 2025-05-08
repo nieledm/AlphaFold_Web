@@ -1,15 +1,31 @@
 {% extends 'base.html' %}
-{% block content %}
-<div class="container mt-5">
-    <!-- <h2>Olá, {{ session['user_name'] }}! {% if session['is_admin'] %}<span class="badge bg-danger">Admin</span>{% endif %}</h2> -->
 
+{% block css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container top-spacing-reduced">
     <div class="card align-items-center mt-4">
         <div class="card-body">
-            <h5 class="card-title text-center mb-5">Upload file para o AlphaFold</h5>
+            <div class="title-container">
+                <h3 class="page-title">
+                  <span class="title-highlight">Upload para o Alphafold</span>
+                </h3>
+            </div>
             <form action="/upload" method="POST" enctype="multipart/form-data">
-                <label for="file">Escolha um arquivo JSON:</label>
-                <input type="file" name="file" accept=".json" required>
-                <input type="submit" value="Upload">
+                <div class="form-container">
+                    <div class="column">
+                        <label class="title-sub" for="file">Escolha um arquivo JSON:</label>
+                        <button type="button" class="button" onclick="document.getElementById('file-input').click()">Selecionar Arquivo</button>
+                        <input type="file" id="file-input" name="file" accept=".json" required>
+                    </div>
+                    <div class="column">
+                        <input class="title-sub" type="text" id="filename" name="filename" 
+                        readonly placeholder="Nenhum arquivo selecionado">
+                        <input type="submit" class="button" value="Upload">
+                    </div>
+                </div>
             </form>            
         </div>
     </div>
@@ -41,8 +57,6 @@
             {% endfor %}
         </tbody>
     </table>
-
-
 </div>
 {% endblock %}
 
