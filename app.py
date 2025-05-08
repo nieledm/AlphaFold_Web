@@ -553,8 +553,8 @@ def generate_json():
 @app.route('/upload', methods=['POST'])
 def upload_file():
     """Processa upload de arquivos para o AlphaFold"""
-    if 'user_id' not in session:
-        flash('Por favor, faça login primeiro.', 'warning')
+    if not all(key in session for key in ['user_id', 'user_name', 'user_email']):
+        flash('Por favor, faça login novamente.', 'warning')
         return redirect(url_for('login'))
 
     if 'file' not in request.files:
