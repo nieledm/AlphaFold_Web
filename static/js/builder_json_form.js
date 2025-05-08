@@ -536,7 +536,7 @@ function generateAllJSON() {
       modelSeeds: seedsArray,
       sequences: entities,
       dialect: "alphafold3",
-      version: 3
+      version: 2
   };
 
   return jsonData;
