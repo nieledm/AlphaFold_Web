@@ -561,7 +561,7 @@ def upload_file():
     tz = pytz.timezone('America/Sao_Paulo')
     now = datetime.now(tz)
     now_str = now.strftime('%Y-%m-%d %H:%M:%S')
-    
+
     if not all(key in session for key in ['user_id', 'user_name', 'user_email']):
         flash('Por favor, faça login novamente.', 'warning')
         return redirect(url_for('login'))
@@ -580,9 +580,9 @@ def upload_file():
         user_name = session['user_name']
         user_email = session['user_email']
        
-        input_subdir = os.path.join(ALPHAFOLD_INPUT_BASE, base_name)
+        input_subdir = os.path.join(ALPHAFOLD_INPUT_BASE, user_name, base_name)
         output_user_dir = os.path.join(ALPHAFOLD_OUTPUT_BASE, user_name)
-        output_subdir = os.path.join(ALPHAFOLD_OUTPUT_BASE, user_name)
+        output_subdir = os.path.join(output_user_dir, user_name, base_name)
         
         # Cria diretórios para input e output caso não existam
         os.makedirs(input_subdir, exist_ok=True)
@@ -604,7 +604,7 @@ def upload_file():
         # Monta comando e roda em background
         command = (
             f"docker run -it "
-            f"--volume {ALPHAFOLD_INPUT_BASE}:/root/af_input "
+            f"--volume {input_subdir}:/root/af_input "
             f"--volume {output_user_dir}:/root/af_output "
             f"--volume {ALPHAFOLD_PARAMS}:/root/models "
             f"--volume {ALPHAFOLD_DB}:/root/public_databases "
