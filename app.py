@@ -203,6 +203,7 @@ def login():
             elif user['is_active'] == 1:
                 session['user_id'] = user['id']
                 session['user_name'] = user['name']
+                session['user_email'] = user['email']
                 session['is_admin'] = bool(user['is_admin'])
                 flash('Login bem-sucedido!', 'success')
                 return redirect(url_for('dashboard'))
