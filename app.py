@@ -282,10 +282,12 @@ def dashboard():
         (session['user_id'],)
     ).fetchall()
     conn.close()
+    dict(session)
 
-    return render_template('dashboard.html', nome_usuario=session.get('user_name', 'Usuário'), uploads=uploads)
-
-    
+    return render_template('dashboard.html', 
+                           nome_usuario=session.get('user_name', 'Usuário'), 
+                           uploads=uploads,
+                           active_page='dashboard')    
 
 @app.route('/aviso/<int:aviso_id>')
 def aviso(aviso_id):
@@ -553,6 +555,7 @@ def generate_json():
 @app.route('/upload', methods=['POST'])
 def upload_file():
     """Processa upload de arquivos para o AlphaFold"""
+    dict(session)
     if not all(key in session for key in ['user_id', 'user_name', 'user_email']):
         flash('Por favor, faça login novamente.', 'warning')
         return redirect(url_for('login'))
@@ -568,9 +571,14 @@ def upload_file():
         filename = file.filename
         base_name = filename.rsplit('.', 1)[0]
 
-        # Cria diretórios
+        user_name = session['user_name']
+        user_email = session['user_email']
+       
         input_subdir = os.path.join(ALPHAFOLD_INPUT_BASE, base_name)
-        output_subdir = os.path.join(ALPHAFOLD_OUTPUT_BASE, base_name)
+        output_user_dir = os.path.join(ALPHAFOLD_OUTPUT_BASE, user_name)
+        output_subdir = os.path.join(ALPHAFOLD_OUTPUT_BASE, user_name)
+        
+        # Cria diretórios para input e output caso não existam
         os.makedirs(input_subdir, exist_ok=True)
         os.makedirs(output_subdir, exist_ok=True)
 
@@ -591,27 +599,41 @@ def upload_file():
         command = (
             f"docker run -it "
             f"--volume {ALPHAFOLD_INPUT_BASE}:/root/af_input "
-            f"--volume {ALPHAFOLD_OUTPUT_BASE}:/root/af_output "
+            f"--volume {output_user_dir}:/root/af_output "
             f"--volume {ALPHAFOLD_PARAMS}:/root/models "
             f"--volume {ALPHAFOLD_DB}:/root/public_databases "
             f"--gpus all alphafold3 "
             f"python run_alphafold.py "
             f"--json_path=/root/af_input/{base_name}/{filename} "
             f"--output_dir=/root/af_output/{base_name}"
-        )
+        ).format(
+        input_base=ALPHAFOLD_INPUT_BASE,
+        output_user_dir=output_user_dir,
+        params=ALPHAFOLD_PARAMS,
+        db=ALPHAFOLD_DB,
+        base_name=base_name,
+        filename=filename
+    )
 
         Thread(target=run_alphafold_in_background, args=(
-            command, output_subdir, session['user_name'], session['user_email'], base_name
+            command, user_name, user_email, base_name
         )).start()
+        
+        dict(session)
 
         flash("Arquivo enviado. Você será notificado quando o processamento terminar.", 'info')
         return redirect(url_for('dashboard'))
 
     return 'Invalid file format'
 
-def run_alphafold_in_background(command, output_subdir, user_name, user_email, base_name):
+def run_alphafold_in_background(command, user_name, user_email, base_name):
+    # Cria o diretório /str1/.../alphafold3_output/<usuario>, se não existir
+    output_user_dir = os.path.join(ALPHAFOLD_OUTPUT_BASE, user_name)
+    os.makedirs(output_user_dir, exist_ok=True)
+    command = command.format(base_name=base_name, user_name=user_name)
+    
     subprocess.run(command, shell=True)
-    result_file = os.path.join(output_subdir, 'predicted.pdb')
+    result_file = os.path.join(output_user_dir, base_name, 'predicted.pdb')
 
     conn = get_db_connection()
     if os.path.exists(result_file):
@@ -627,10 +649,19 @@ def run_alphafold_in_background(command, output_subdir, user_name, user_email, b
 @app.route('/download/<base_name>')
 def download_result(base_name):
     """Permite download do arquivo processado se pronto"""
-    output_dir = os.path.join(ALPHAFOLD_OUTPUT_BASE, base_name)
-    file_path = os.path.join(output_dir, 'predicted.pdb')
+    
+    # Obtém o nome de usuário da sessão
+    user_name = session.get('user_name')
+    if not user_name:
+        flash('Usuário não encontrado. Faça login novamente.', 'warning')
+        return redirect(url_for('login'))
+    
+    # Diretório específico do usuário
+    output_user_dir = os.path.join(ALPHAFOLD_OUTPUT_BASE, user_name)
+    file_path = os.path.join(output_user_dir, base_name, 'predicted.pdb')
+    
     if os.path.exists(file_path):
-        return send_from_directory(output_dir, 'predicted.pdb', as_attachment=True)
+        return send_from_directory(output_user_dir, os.path.join(base_name, 'predicted.pdb'), as_attachment=True)
     else:
         flash('Arquivo não encontrado ou ainda não gerado.', 'danger')
         return redirect(url_for('dashboard'))

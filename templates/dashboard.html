@@ -7,12 +7,12 @@
 {% block content %}
 <div class="container top-spacing-reduced">
     <div class="card align-items-center mt-4">
-        <div class="card-body">
+        <div class="card-body mb-0">
             <div class="title-container">
                 <h3 class="page-title">
                   <span class="title-highlight">Upload para o Alphafold</span>
                 </h3>
-            </div>
+            </div>            
             <form action="/upload" method="POST" enctype="multipart/form-data">
                 <div class="form-container">
                     <div class="column">
@@ -26,7 +26,19 @@
                         <input type="submit" class="button" value="Upload">
                     </div>
                 </div>
-            </form>            
+            </form>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages mt-3 mb-0 w-100">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}            
         </div>
     </div>
 
