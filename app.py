@@ -582,7 +582,7 @@ def upload_file():
        
         input_subdir = os.path.join(ALPHAFOLD_INPUT_BASE, user_name)
         output_user_dir = os.path.join(ALPHAFOLD_OUTPUT_BASE, user_name)
-        output_subdir = os.path.join(output_user_dir, user_name, base_name)
+        output_subdir = os.path.join(output_user_dir, base_name)
         
         # Cria diretórios para input e output caso não existam
         os.makedirs(input_subdir, exist_ok=True)
