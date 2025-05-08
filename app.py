@@ -8,9 +8,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import smtplib
 from smtplib import SMTP_SSL
 from threading import Thread
+from datetime import datetime
+import pytz
 
 
 app = Flask(__name__)
@@ -556,6 +557,11 @@ def generate_json():
 def upload_file():
     """Processa upload de arquivos para o AlphaFold"""
     dict(session)
+    #Time Zone e data
+    tz = pytz.timezone('America/Sao_Paulo')
+    now = datetime.now(tz)
+    now_str = now.strftime('%Y-%m-%d %H:%M:%S')
+    
     if not all(key in session for key in ['user_id', 'user_name', 'user_email']):
         flash('Por favor, faça login novamente.', 'warning')
         return redirect(url_for('login'))
@@ -589,8 +595,8 @@ def upload_file():
         # Salva no banco
         conn = get_db_connection()
         conn.execute(
-            'INSERT INTO uploads (user_id, file_name, base_name, status) VALUES (?, ?, ?, ?)',
-            (session['user_id'], filename, base_name, 'PROCESSANDO')
+            'INSERT INTO uploads (user_id, file_name, base_name, status, created_at) VALUES (?, ?, ?, ?, ?)',
+            (session['user_id'], filename, base_name, 'PROCESSANDO', now_str)
         )
         conn.commit()
         conn.close()
@@ -605,7 +611,7 @@ def upload_file():
             f"--gpus all alphafold3 "
             f"python run_alphafold.py "
             f"--json_path=/root/af_input/{base_name}/{filename} "
-            f"--output_dir=/root/af_output/{base_name}"
+            f"--output_dir={output_user_dir}"
         ).format(
         input_base=ALPHAFOLD_INPUT_BASE,
         output_user_dir=output_user_dir,

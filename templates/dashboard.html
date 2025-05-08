@@ -61,6 +61,8 @@
                 <td>
                     {% if upload['status'] == 'COMPLETO' %}
                         <a href="{{ url_for('download_result', base_name=upload['base_name']) }}" class="btn btn-sm btn-success">Download</a>
+                    {% elif  upload['status'] == 'ERRO' %}
+                        <span class="text-muted"></span>
                     {% else %}
                         <span class="text-muted">Aguardando</span>
                     {% endif %}

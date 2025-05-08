@@ -1,2 +1,5 @@
 Para usar o envio de emails, instalar via bash
     pip install itsdangerous
+
+Para obter data e hora local
+    pip install pytz
