@@ -319,7 +319,8 @@ def usuarios_ativos():
         usuarios_ativos = c.fetchall()
         
     return render_template('usuarios_ativos.html',
-                         titulo='Usuários Ativos', 
+                         titulo='Usuários Ativos',
+                         active_page='ativos', 
                          usuarios_ativos=usuarios_ativos,                            
                          search_query=search_query)
 
@@ -343,7 +344,8 @@ def usuarios_pendentes():
         usuarios_pendentes = c.fetchall()
 
     return render_template('usuarios_pendentes.html',
-                         titulo='Usuários Pendentes de Ativação', 
+                         titulo='Usuários Pendentes de Ativação',
+                         active_page='pendentes', 
                          usuarios_pendentes=usuarios_pendentes, 
                          search_query=search_query)
 
@@ -367,7 +369,8 @@ def usuarios_desativados():
         usuarios_desativados = c.fetchall()
 
     return render_template('usuarios_desativados.html',
-                         titulo='Usuários Desativados', 
+                         titulo='Usuários Desativados',
+                         active_page='desativados', 
                          usuarios_desativados=usuarios_desativados, 
                          search_query=search_query)
 

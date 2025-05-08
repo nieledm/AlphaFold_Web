@@ -453,6 +453,7 @@ function processEntityCard(card, index) {
   const entityType = card.querySelector('.entity-type').value;
   const copies = parseInt(card.querySelector('.copies').value) || 1;
   const sequence = card.querySelector('.sequence').value.trim();
+  const seeds = parseInt(card.querySelector('.seeds').value) || 1;
   
   // Validação básica
   if (!entityType || !sequence) {
@@ -498,6 +499,7 @@ function generateAllJSON() {
   const cards = document.querySelectorAll('.form-card');
   const entities = [];
   let hasErrors = false;
+  const allSeeds = new Set();
 
   // Processar cada card/entidade
   cards.forEach((card, index) => {
@@ -507,6 +509,14 @@ function generateAllJSON() {
           alert(`Erro na Entidade #${index + 1}: ${entity.error}`);
       } else {
           entities.push(entity);
+
+          const seedInput = card.querySelector('.seeds');
+            if (seedInput) {
+                const seedValue = parseInt(seedInput.value);
+                if (!isNaN(seedValue)) {
+                    allSeeds.add(seedValue);
+                }
+            }
       }
   });
 
@@ -514,10 +524,16 @@ function generateAllJSON() {
       return null;
   }
 
+  // Converter o Set de seeds para array
+  const seedsArray = Array.from(allSeeds);
+  if (seedsArray.length === 0) {
+      seedsArray.push(42); // Valor padrão se nenhum seed for especificado
+  }
+
   // Criar o objeto JSON final conforme especificação AlphaFold 3
   const jsonData = {
       name: "AlphaFold Prediction",
-      modelSeeds: [42], // Seed padrão, pode ser configurável
+      modelSeeds: seedsArray,
       sequences: entities,
       dialect: "alphafold3",
       version: 3

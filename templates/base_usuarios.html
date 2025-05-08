@@ -1,8 +1,25 @@
 {# templates/base_usuarios.html #}
 {% extends 'base.html' %}
 
+{% block css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/titulosUsuarios.css') }}">
+{% endblock %}
+
 {% block content %}
-  <h1 class="text-center my-4">{{ titulo }}</h1> <!-- para enviar o título via renderização da rota (app.py) -->
+    <div class="title-container top-spacing-reduced">
+        <h1 class="page-title">
+            <span class="title-icon">
+                {% if active_page == 'ativos' %}
+                    <i class="fas fa-user-check text-success me-2"></i>
+                {% elif active_page == 'pendentes' %}
+                    <i class="fas fa-user-clock text-warning me-2"></i>
+                {% elif active_page == 'desativados' %}
+                    <i class="fas fa-user-slash text-secondary me-2"></i>
+                {% endif %}
+            </span>
+            <span class="title-highlight">{{ titulo }}</span>
+        </h1>
+    </div>
 
   <!-- Barra de pesquisa -->
   <form method="GET" action="{{ url_busca }}" class="mb-4">
