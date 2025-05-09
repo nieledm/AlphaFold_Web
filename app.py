@@ -600,12 +600,15 @@ def upload_file():
         user_name = session['user_name']
         user_email = session['user_email']
        
-        input_subdir = os.path.join(ALPHAFOLD_INPUT_BASE, user_name)
+        input_user_dir = os.path.join(ALPHAFOLD_INPUT_BASE, user_name)
+        input_subdir = os.path.join(input_user_dir, base_name)
         output_user_dir = os.path.join(ALPHAFOLD_OUTPUT_BASE, user_name)
         output_subdir = os.path.join(output_user_dir, base_name)
         
         # Cria diretórios para input e output caso não existam
-        os.makedirs(input_subdir, exist_ok=True)
+        os.makedirs(input_user_dir, exist_ok=True)
+        os.makedirs(input_subdir, exist_ok=True)        
+        os.makedirs(output_user_dir, exist_ok=True)
         os.makedirs(output_subdir, exist_ok=True)
 
         # Salva arquivo
@@ -630,7 +633,7 @@ def upload_file():
             f"--volume {ALPHAFOLD_DB}:/root/public_databases "
             f"--gpus all alphafold3 "
             f"python run_alphafold.py "
-            f"--json_path=/root/af_input/{base_name}/{filename} "
+            f"--json_path=/root/af_input/{filename} "
             f"--output_dir=/root/af_output/{base_name}"
         )
 
