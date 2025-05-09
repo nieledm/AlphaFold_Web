@@ -135,7 +135,7 @@ def send_activation_email(user_email, user_name):
     """
     send_email(user_email, "Sua conta no AlphaFold foi ativada", html)
 
-def send_processing_complete_email(user_name, user_email, base_name):
+def send_processing_complete_email(user_name, user_email, base_name, user_id):
     """Envia e-mail ao usuário informando que o processamento foi concluído"""
     download_url = url_for('download_result', user_id=session['user_id'], project_name=base_name, _external=True)
     html = f"""
