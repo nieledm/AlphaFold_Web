@@ -620,6 +620,9 @@ def upload_file():
             f"--output_dir=/root/af_output/{base_name}"
         )
 
+        print(f"[DEBUG] Arquivo salvo em: {input_file_path}")
+        print(f"[DEBUG] Comando Docker completo: {command}")
+
         Thread(target=run_alphafold_in_background, args=(
             command, user_name, user_email, base_name
         )).start()
@@ -644,7 +647,8 @@ def run_alphafold_in_background(command, user_name, user_email, base_name):
     result_file = os.path.join(output_subdir, 'predicted.pdb')
 
     print(f"[DEBUG] Running AlphaFold with command:\n{command}")
-    print(f"[DEBUG] Checking result at: {result_file}")
+    print(f"[DEBUG] output_subdir background: \n{output_subdir}")
+    print(f"[DEBUG] Checking result at: \n{result_file}")
 
     conn = get_db_connection()
     if os.path.exists(result_file):
@@ -656,7 +660,6 @@ def run_alphafold_in_background(command, user_name, user_email, base_name):
         send_email(user_email, "Erro no processamento do AlphaFold", f"<p>Olá {user_name},</p><p>Ocorreu um erro e o arquivo de resultado não foi gerado.</p>")
     conn.commit()
     conn.close()
-    return redirect(url_for('dashboard'))
 
 @app.route('/download/<base_name>')
 def download_result(base_name):
