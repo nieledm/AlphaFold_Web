@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, flash, request, send_from_directory, session, g
+from flask import Flask, render_template, redirect, url_for, flash, request, session, g, send_file
 import os
 import subprocess
 import json
@@ -12,6 +12,8 @@ from smtplib import SMTP_SSL
 from threading import Thread
 from datetime import datetime
 import pytz
+import tempfile
+import zipfile
 
 
 app = Flask(__name__)
@@ -661,13 +663,24 @@ def download_result(base_name):
     
     # Diretório específico do usuário
     output_user_dir = os.path.join(ALPHAFOLD_OUTPUT_BASE, user_name)
-    file_path = os.path.join(output_user_dir, base_name, 'predicted.pdb')
-    
-    if os.path.exists(file_path):
-        return send_from_directory(output_user_dir, os.path.join(base_name, 'predicted.pdb'), as_attachment=True)
-    else:
-        flash('Arquivo não encontrado ou ainda não gerado.', 'danger')
+    folder_to_zip = os.path.join(output_user_dir, base_name)
+
+    if not os.path.exists(folder_to_zip):
+        flash('Resultados não encontrados.', 'danger')
         return redirect(url_for('dashboard'))
+
+    # Cria um arquivo zip temporário
+    temp_zip = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
+    with zipfile.ZipFile(temp_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for root, _, files in os.walk(folder_to_zip):
+            for file in files:
+                full_path = os.path.join(root, file)
+                arcname = os.path.relpath(full_path, start=folder_to_zip)
+                zipf.write(full_path, arcname)
+
+    temp_zip.seek(0)
+    return send_file(temp_zip.name, mimetype='application/zip',
+                     as_attachment=True, download_name=f"{base_name}_result.zip")
 
 
 # ==============================================================
