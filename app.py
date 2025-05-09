@@ -663,11 +663,12 @@ def run_alphafold_in_background(command, user_name, user_email, base_name):
     print(f"[DEBUG] Running AlphaFold with command:\n{command}")         
     subprocess.run(command, shell=True)
     
-    result_file = glob.glob(os.path.join(output_subdir, '**', 'predicted.pdb'), recursive=True)    
-    print(f"[DEBUG] Checking result at: {result_file}")
+    result_files = glob.glob(os.path.join(output_subdir, '**', 'predicted.pdb'), recursive=True)    
+    print(f"[DEBUG] Checking result at: {result_files}")
+    print(f"[DEBUG] Output_subir: {output_subdir}")
 
     conn = get_db_connection()
-    if os.path.exists(result_file):
+    if result_files and os.path.exists(result_files[0]):
         # Atualiza status para COMPLETO
         conn.execute("UPDATE uploads SET status = ? WHERE base_name = ?", ('COMPLETO', base_name))
         send_processing_complete_email(user_name, user_email, base_name)
