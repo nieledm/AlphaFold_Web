@@ -611,7 +611,7 @@ def upload_file():
             f"--gpus all alphafold3 "
             f"python run_alphafold.py "
             f"--json_path=/root/af_input/{base_name}/{filename} "
-            f"--output_dir={output_subdir}"
+            f"--output_dir=/root/af_output/{base_name}"
         )
 
         Thread(target=run_alphafold_in_background, args=(
