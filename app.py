@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, flash, request, send_from_directory, session, g, current_app
+from flask import Flask, render_template, redirect, url_for, flash, request, send_from_directory, session, g
 import os
 import subprocess
 import json
@@ -12,9 +12,6 @@ from smtplib import SMTP_SSL
 from threading import Thread
 from datetime import datetime
 import pytz
-import shutil
-import glob
-from urllib.parse import quote
 
 
 app = Flask(__name__)
@@ -138,23 +135,7 @@ def send_activation_email(user_email, user_name):
 
 def send_processing_complete_email(user_name, user_email, base_name):
     """Envia e-mail ao usuário informando que o processamento foi concluído"""
-
-    try:
-        # Garante contexto de app, necessário fora de requisição HTTP
-        with current_app.app_context():
-            # Recria a URL de download com base no projeto
-            download_url = url_for(
-                'download_result',
-                user_id=quote(session.get('user_id', '')),  # evita problemas com threads
-                project_name=quote(base_name),
-                _external=True
-            )
-
-    except RuntimeError:
-        # Fallback: cria uma URL genérica sem contexto Flask
-        host = os.environ.get("APP_BASE_URL", "http://localhost:5000")
-        download_url = f"{host}/download_result?user_id={quote(str(session.get('user_id', '')))}&project_name={quote(base_name)}"
-
+    download_url = url_for('download_result', user_id=session['user_id'], project_name=base_name, _external=True)
     html = f"""
     <html>
         <body>
@@ -162,7 +143,6 @@ def send_processing_complete_email(user_name, user_email, base_name):
             <p>Seu processamento com o AlphaFold foi concluído com sucesso.</p>
             <p>Você pode baixar o resultado clicando no link abaixo:</p>
             <p><a href="{download_url}">Download do resultado</a></p>
-            <br>
             <p>Obrigado por usar o sistema AlphaFold!</p>
         </body>
     </html>
@@ -600,20 +580,23 @@ def upload_file():
         user_name = session['user_name']
         user_email = session['user_email']
        
-        input_user_dir = os.path.join(ALPHAFOLD_INPUT_BASE, user_name)
-        input_subdir = os.path.join(input_user_dir, base_name)
+        input_subdir = os.path.join(ALPHAFOLD_INPUT_BASE, user_name)
         output_user_dir = os.path.join(ALPHAFOLD_OUTPUT_BASE, user_name)
         output_subdir = os.path.join(output_user_dir, base_name)
-        
+
+        print(f"[DEBUG] input_subdir:\n{input_subdir}")
+        print(f"[DEBUG] output_user_dir:\n{output_user_dir}")
+        print(f"[DEBUG] output_subdir:\n{output_subdir}")
+
         # Cria diretórios para input e output caso não existam
-        os.makedirs(input_user_dir, exist_ok=True)
-        os.makedirs(input_subdir, exist_ok=True)        
-        os.makedirs(output_user_dir, exist_ok=True)
+        os.makedirs(input_subdir, exist_ok=True)
         os.makedirs(output_subdir, exist_ok=True)
 
         # Salva arquivo
         input_file_path = os.path.join(input_subdir, filename)
         file.save(input_file_path)
+
+        print(f"[DEBUG] input_file_path:\n{input_file_path}")
 
         # Salva no banco
         conn = get_db_connection()
@@ -633,7 +616,7 @@ def upload_file():
             f"--volume {ALPHAFOLD_DB}:/root/public_databases "
             f"--gpus all alphafold3 "
             f"python run_alphafold.py "
-            f"--json_path=/root/af_input/{filename} "
+            f"--json_path=/root/af_input/{user_name}/{filename} "
             f"--output_dir=/root/af_output/{base_name}"
         )
 
@@ -642,6 +625,7 @@ def upload_file():
         )).start()
         
         dict(session)
+
 
         flash("Arquivo enviado. Você será notificado quando o processamento terminar.", 'info')
         return redirect(url_for('dashboard'))
@@ -652,31 +636,24 @@ def run_alphafold_in_background(command, user_name, user_email, base_name):
     
     output_user_dir = os.path.join(ALPHAFOLD_OUTPUT_BASE, user_name)
     output_subdir = os.path.join(output_user_dir, base_name)
-
-    os.makedirs(output_user_dir, exist_ok=True)
-
-    # Limpa e recria diretório de saída
-    if os.path.exists(output_subdir):
-        shutil.rmtree(output_subdir, ignore_errors=True)
-    os.makedirs(output_subdir, exist_ok=True)
-
-    print(f"[DEBUG] Running AlphaFold with command:\n{command}")         
-    subprocess.run(command, shell=True)
     
-    result_files = glob.glob(os.path.join(output_subdir, '**', 'predicted.pdb'), recursive=True)    
-    print(f"[DEBUG] Checking result at: {result_files}")
-    print(f"[DEBUG] Output_subir: {output_subdir}")
+    os.makedirs(output_user_dir, exist_ok=True)
+    os.makedirs(output_subdir, exist_ok=True)     
+    
+    subprocess.run(command, shell=True)
+    result_file = os.path.join(output_subdir, 'predicted.pdb')
+
+    print(f"[DEBUG] Running AlphaFold with command:\n{command}")
+    print(f"[DEBUG] Checking result at: {result_file}")
 
     conn = get_db_connection()
-    if result_files and os.path.exists(result_files[0]):
+    if os.path.exists(result_file):
         # Atualiza status para COMPLETO
         conn.execute("UPDATE uploads SET status = ? WHERE base_name = ?", ('COMPLETO', base_name))
         send_processing_complete_email(user_name, user_email, base_name)
-        print(f"[INFO] AlphaFold concluído com sucesso para {base_name}")
     else:
         conn.execute("UPDATE uploads SET status = ? WHERE base_name = ?", ('ERRO', base_name))
         send_email(user_email, "Erro no processamento do AlphaFold", f"<p>Olá {user_name},</p><p>Ocorreu um erro e o arquivo de resultado não foi gerado.</p>")
-        print(f"[ERRO] predicted.pdb não encontrado para {base_name}")
     conn.commit()
     conn.close()
     return redirect(url_for('dashboard'))
