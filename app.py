@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, flash, request, send_from_directory, session, g
+from flask import Flask, render_template, redirect, url_for, flash, request, send_from_directory, session, g, current_app
 import os
 import subprocess
 import json
@@ -14,6 +14,7 @@ from datetime import datetime
 import pytz
 import shutil
 import glob
+from urllib.parse import quote
 
 
 app = Flask(__name__)
@@ -137,7 +138,23 @@ def send_activation_email(user_email, user_name):
 
 def send_processing_complete_email(user_name, user_email, base_name):
     """Envia e-mail ao usuário informando que o processamento foi concluído"""
-    download_url = url_for('download_result', user_id=session['user_id'], project_name=base_name, _external=True)
+
+    try:
+        # Garante contexto de app, necessário fora de requisição HTTP
+        with current_app.app_context():
+            # Recria a URL de download com base no projeto
+            download_url = url_for(
+                'download_result',
+                user_id=quote(session.get('user_id', '')),  # evita problemas com threads
+                project_name=quote(base_name),
+                _external=True
+            )
+
+    except RuntimeError:
+        # Fallback: cria uma URL genérica sem contexto Flask
+        host = os.environ.get("APP_BASE_URL", "http://localhost:5000")
+        download_url = f"{host}/download_result?user_id={quote(str(session.get('user_id', '')))}&project_name={quote(base_name)}"
+
     html = f"""
     <html>
         <body>
@@ -145,6 +162,7 @@ def send_processing_complete_email(user_name, user_email, base_name):
             <p>Seu processamento com o AlphaFold foi concluído com sucesso.</p>
             <p>Você pode baixar o resultado clicando no link abaixo:</p>
             <p><a href="{download_url}">Download do resultado</a></p>
+            <br>
             <p>Obrigado por usar o sistema AlphaFold!</p>
         </body>
     </html>
@@ -651,12 +669,10 @@ def run_alphafold_in_background(command, user_name, user_email, base_name):
         conn.execute("UPDATE uploads SET status = ? WHERE base_name = ?", ('COMPLETO', base_name))
         send_processing_complete_email(user_name, user_email, base_name)
         print(f"[INFO] AlphaFold concluído com sucesso para {base_name}")
-        flash('AlphaFold concluído com sucesso!', 'success')
     else:
         conn.execute("UPDATE uploads SET status = ? WHERE base_name = ?", ('ERRO', base_name))
         send_email(user_email, "Erro no processamento do AlphaFold", f"<p>Olá {user_name},</p><p>Ocorreu um erro e o arquivo de resultado não foi gerado.</p>")
         print(f"[ERRO] predicted.pdb não encontrado para {base_name}")
-        flash('Erro para gerar resultado', 'danger')
     conn.commit()
     conn.close()
     return redirect(url_for('dashboard'))
