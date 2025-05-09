@@ -12,6 +12,8 @@ from smtplib import SMTP_SSL
 from threading import Thread
 from datetime import datetime
 import pytz
+import shutil
+import glob
 
 
 app = Flask(__name__)
@@ -629,14 +631,18 @@ def run_alphafold_in_background(command, user_name, user_email, base_name):
     
     output_user_dir = os.path.join(ALPHAFOLD_OUTPUT_BASE, user_name)
     output_subdir = os.path.join(output_user_dir, base_name)
-    
-    os.makedirs(output_user_dir, exist_ok=True)
-    os.makedirs(output_subdir, exist_ok=True)     
-    
-    subprocess.run(command, shell=True)
-    result_file = os.path.join(output_subdir, 'predicted.pdb')
 
-    print(f"[DEBUG] Running AlphaFold with command:\n{command}")
+    os.makedirs(output_user_dir, exist_ok=True)
+
+    # Limpa e recria diretório de saída
+    if os.path.exists(output_subdir):
+        shutil.rmtree(output_subdir)
+    os.makedirs(output_subdir, exist_ok=True)
+
+    print(f"[DEBUG] Running AlphaFold with command:\n{command}")         
+    subprocess.run(command, shell=True)
+    
+    result_file = glob.glob(os.path.join(output_subdir, '**', 'predicted.pdb'), recursive=True)    
     print(f"[DEBUG] Checking result at: {result_file}")
 
     conn = get_db_connection()
@@ -644,10 +650,12 @@ def run_alphafold_in_background(command, user_name, user_email, base_name):
         # Atualiza status para COMPLETO
         conn.execute("UPDATE uploads SET status = ? WHERE base_name = ?", ('COMPLETO', base_name))
         send_processing_complete_email(user_name, user_email, base_name)
+        print(f"[INFO] AlphaFold concluído com sucesso para {base_name}")
         flash('AlphaFold concluído com sucesso!', 'success')
     else:
         conn.execute("UPDATE uploads SET status = ? WHERE base_name = ?", ('ERRO', base_name))
         send_email(user_email, "Erro no processamento do AlphaFold", f"<p>Olá {user_name},</p><p>Ocorreu um erro e o arquivo de resultado não foi gerado.</p>")
+        print(f"[ERRO] predicted.pdb não encontrado para {base_name}")
         flash('Erro para gerar resultado', 'danger')
     conn.commit()
     conn.close()

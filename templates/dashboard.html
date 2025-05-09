@@ -62,7 +62,7 @@
                     {% if upload['status'] == 'COMPLETO' %}
                         <a href="{{ url_for('download_result', base_name=upload['base_name']) }}" class="btn btn-sm btn-success">Download</a>
                     {% elif  upload['status'] == 'ERRO' %}
-                        <i class="fas fa-exclamation-circle"></i> Erro
+                        <i class="fas fa-exclamation-circle text-danger"></i> Erro
                     {% else %}
                          <i class="fas fa-sync-alt fa-spin text-primary"></i> Processando...
                     {% endif %}
