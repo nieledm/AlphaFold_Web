@@ -579,14 +579,11 @@ def upload_file():
 
         user_name = session['user_name']
         user_email = session['user_email']
-       
+        user_id = session['user_id']
+
         input_subdir = os.path.join(ALPHAFOLD_INPUT_BASE, user_name)
         output_user_dir = os.path.join(ALPHAFOLD_OUTPUT_BASE, user_name)
         output_subdir = os.path.join(output_user_dir, base_name)
-
-        print(f"[DEBUG] input_subdir:\n{input_subdir}")
-        print(f"[DEBUG] output_user_dir:\n{output_user_dir}")
-        print(f"[DEBUG] output_subdir:\n{output_subdir}")
 
         # Cria diretórios para input e output caso não existam
         os.makedirs(input_subdir, exist_ok=True)
@@ -595,8 +592,6 @@ def upload_file():
         # Salva arquivo
         input_file_path = os.path.join(input_subdir, filename)
         file.save(input_file_path)
-
-        print(f"[DEBUG] input_file_path:\n{input_file_path}")
 
         # Salva no banco
         conn = get_db_connection()
@@ -620,11 +615,8 @@ def upload_file():
             f"--output_dir=/root/af_output/{base_name}"
         )
 
-        print(f"[DEBUG] Arquivo salvo em: {input_file_path}")
-        print(f"[DEBUG] Comando Docker completo: {command}")
-
         Thread(target=run_alphafold_in_background, args=(
-            command, user_name, user_email, base_name
+            command, user_name, user_email, base_name, user_id
         )).start()
         
         dict(session)
@@ -635,7 +627,7 @@ def upload_file():
 
     return 'Invalid file format'
 
-def run_alphafold_in_background(command, user_name, user_email, base_name):
+def run_alphafold_in_background(command, user_name, user_email, base_name, user_id):
     
     output_user_dir = os.path.join(ALPHAFOLD_OUTPUT_BASE, user_name)
     output_subdir = os.path.join(output_user_dir, base_name)
@@ -646,15 +638,11 @@ def run_alphafold_in_background(command, user_name, user_email, base_name):
     subprocess.run(command, shell=True)
     result_file = os.path.join(output_subdir, 'alphafold_prediction', 'alphafold_prediction_model.cif')
 
-    print(f"[DEBUG] Running AlphaFold with command:\n{command}")
-    print(f"[DEBUG] output_subdir background: \n{output_subdir}")
-    print(f"[DEBUG] Checking result at: \n{result_file}")
-
     conn = get_db_connection()
     if os.path.exists(result_file):
         # Atualiza status para COMPLETO
         conn.execute("UPDATE uploads SET status = ? WHERE base_name = ?", ('COMPLETO', base_name))
-        send_processing_complete_email(user_name, user_email, base_name)
+        send_processing_complete_email(user_name, user_email, base_name, user_id)
     else:
         conn.execute("UPDATE uploads SET status = ? WHERE base_name = ?", ('ERRO', base_name))
         send_email(user_email, "Erro no processamento do AlphaFold", f"<p>Olá {user_name},</p><p>Ocorreu um erro e o arquivo de resultado não foi gerado.</p>")
@@ -701,3 +689,20 @@ def check_status():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=5000)
+
+# ==============================================================
+# Teste envio de Email co URL para download
+# ==============================================================
+@app.route('/test-email')
+def test_email():
+    user_name = 'Niele.Mendes'
+    user_email = 'nieledm@gmail.com'
+    base_name = 'teste_rapido'
+    user_id = session.get('user_id', 1)  # ou um valor de teste
+
+    with app.app_context():
+        download_url = url_for('download_result', user_id=user_id, project_name=base_name, _external=True)
+        send_email(user_email, "Teste de email com link de download",
+            f"<p>Olá {user_name},</p><p>Seu link de download está aqui: <a href='{download_url}'>Download</a></p>")
+    
+    return "E-mail de teste enviado."
