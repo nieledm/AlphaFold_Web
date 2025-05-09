@@ -688,7 +688,7 @@ def download_result(base_name):
 @app.context_processor
 def inject_user():
     """Injeta variáveis em todos os templates"""
-    return dict(nome_usuario=g.nome_usuario)
+    return dict(nome_usuario=getattr(g, 'nome_usuario', 'Usuário'))
 
 @app.route('/check_status')
 def check_status():
