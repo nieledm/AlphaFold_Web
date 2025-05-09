@@ -702,20 +702,3 @@ def check_status():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=5000)
-
-# ==============================================================
-# Teste envio de Email co URL para download
-# ==============================================================
-@app.route('/test-email')
-def test_email():
-    user_name = 'Niele.Mendes'
-    user_email = 'nieledm@gmail.com'
-    base_name = 'teste_rapido'
-    user_id = session.get('user_id', 1)  # ou um valor de teste
-
-    with app.app_context():
-        download_url = url_for('download_result', user_id=user_id, project_name=base_name, _external=True)
-        send_email(user_email, "Teste de email com link de download",
-            f"<p>Olá {user_name},</p><p>Seu link de download está aqui: <a href='{download_url}'>Download</a></p>")
-    
-    return "E-mail de teste enviado."
