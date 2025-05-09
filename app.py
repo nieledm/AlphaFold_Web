@@ -654,7 +654,7 @@ def run_alphafold_in_background(command, user_name, user_email, base_name):
 
     # Limpa e recria diretório de saída
     if os.path.exists(output_subdir):
-        shutil.rmtree(output_subdir)
+        shutil.rmtree(output_subdir, ignore_errors=True)
     os.makedirs(output_subdir, exist_ok=True)
 
     print(f"[DEBUG] Running AlphaFold with command:\n{command}")         
