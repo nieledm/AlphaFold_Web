@@ -644,11 +644,14 @@ def run_alphafold_in_background(command, user_name, user_email, base_name):
         # Atualiza status para COMPLETO
         conn.execute("UPDATE uploads SET status = ? WHERE base_name = ?", ('COMPLETO', base_name))
         send_processing_complete_email(user_name, user_email, base_name)
+        flash('AlphaFold concluído com sucesso!', 'success')
     else:
         conn.execute("UPDATE uploads SET status = ? WHERE base_name = ?", ('ERRO', base_name))
         send_email(user_email, "Erro no processamento do AlphaFold", f"<p>Olá {user_name},</p><p>Ocorreu um erro e o arquivo de resultado não foi gerado.</p>")
+        flash('Erro para gerar resultado', 'danger')
     conn.commit()
     conn.close()
+    return redirect(url_for('dashboard'))
 
 @app.route('/download/<base_name>')
 def download_result(base_name):
