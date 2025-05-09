@@ -611,15 +611,8 @@ def upload_file():
             f"--gpus all alphafold3 "
             f"python run_alphafold.py "
             f"--json_path=/root/af_input/{base_name}/{filename} "
-            f"--output_dir={output_user_dir}"
-        ).format(
-        input_base=ALPHAFOLD_INPUT_BASE,
-        output_user_dir=output_user_dir,
-        params=ALPHAFOLD_PARAMS,
-        db=ALPHAFOLD_DB,
-        base_name=base_name,
-        filename=filename
-    )
+            f"--output_dir={output_subdir}"
+        )
 
         Thread(target=run_alphafold_in_background, args=(
             command, user_name, user_email, base_name
@@ -633,13 +626,18 @@ def upload_file():
     return 'Invalid file format'
 
 def run_alphafold_in_background(command, user_name, user_email, base_name):
-    # Cria o diretório /str1/.../alphafold3_output/<usuario>, se não existir
+    
     output_user_dir = os.path.join(ALPHAFOLD_OUTPUT_BASE, user_name)
+    output_subdir = os.path.join(output_user_dir, base_name)
+    
     os.makedirs(output_user_dir, exist_ok=True)
-    command = command.format(base_name=base_name, user_name=user_name)
+    os.makedirs(output_subdir, exist_ok=True)     
     
     subprocess.run(command, shell=True)
-    result_file = os.path.join(output_user_dir, base_name, 'predicted.pdb')
+    result_file = os.path.join(output_subdir, 'predicted.pdb')
+
+    print(f"[DEBUG] Running AlphaFold with command:\n{command}")
+    print(f"[DEBUG] Checking result at: {result_file}")
 
     conn = get_db_connection()
     if os.path.exists(result_file):
