@@ -644,7 +644,7 @@ def run_alphafold_in_background(command, user_name, user_email, base_name):
     os.makedirs(output_subdir, exist_ok=True)     
     
     subprocess.run(command, shell=True)
-    result_file = os.path.join(output_subdir, 'predicted.pdb')
+    result_file = os.path.join(output_subdir, 'alphafold_prediction', 'alphafold_prediction_model.cif')
 
     print(f"[DEBUG] Running AlphaFold with command:\n{command}")
     print(f"[DEBUG] output_subdir background: \n{output_subdir}")
@@ -685,15 +685,18 @@ def download_result(base_name):
 # ==============================================================
 # FUNÇÕES DE CONTEXTO E INICIALIZAÇÃO
 # ==============================================================
-@app.before_request
-def before_request():
-    """Define variáveis globais antes de cada requisição"""
-    g.nome_usuario = session.get('user_name', 'Usuário')
-
 @app.context_processor
 def inject_user():
     """Injeta variáveis em todos os templates"""
     return dict(nome_usuario=g.nome_usuario)
+
+@app.route('/check_status')
+def check_status():
+    job_id = request.args.get('job_id')
+    conn = get_db_connection()
+    status = conn.execute('SELECT status FROM uploads WHERE base_name = ?', (job_id,)).fetchone()
+    conn.close()
+    return jsonify({'status': status[0] if status else 'DESCONHECIDO'})
 
 if __name__ == '__main__':
     init_db()
