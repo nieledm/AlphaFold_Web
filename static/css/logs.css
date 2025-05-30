@@ -9,3 +9,81 @@
     overflow: visible;
     text-overflow: unset;
 }
+
+/* Estilos para a tabela de logs */
+.table-responsive {
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.table th {
+    white-space: nowrap;
+    position: relative;
+    cursor: pointer;
+}
+
+.table th.sortable:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+}
+
+.table th .bi-arrow-down-up {
+    opacity: 0.3;
+    font-size: 0.8rem;
+    margin-left: 0.3rem;
+}
+
+.table th:hover .bi-arrow-down-up {
+    opacity: 0.7;
+}
+
+.table th.sorted-asc .bi-arrow-down-up::before {
+    content: "\f148";
+    opacity: 1;
+}
+
+.table th.sorted-desc .bi-arrow-down-up::before {
+    content: "\f149";
+    opacity: 1;
+}
+
+/* Estilos para os detalhes dos logs */
+.log-details {
+    max-width: 300px;
+}
+
+.details-content {
+    display: inline-block;
+    max-height: 3em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.details-content.expanded {
+    max-height: none;
+    white-space: normal;
+    overflow: visible;
+}
+
+.toggle-details {
+    font-size: 0.8rem;
+    vertical-align: middle;
+}
+
+/* Badges para tipos de ação */
+.badge {
+    font-size: 0.75em;
+    font-weight: 500;
+    padding: 0.35em 0.65em;
+}
+
+/* Estilos para cards */
+.card-header {
+    padding: 0.75rem 1.25rem;
+}
+
+.card-header h5 {
+    font-size: 1.1rem;
+    font-weight: 500;
+}

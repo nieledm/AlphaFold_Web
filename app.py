@@ -995,19 +995,36 @@ def view_logs():
 
     search_query = request.args.get('search', '').strip()
     user_id_filter = request.args.get('user_id_filter', '').strip()
-    action_filter = request.args.get('action_filter', '').strip()
+    # action_filter = request.args.get('action_filter', '').strip()
+    user_name_filter = request.args.get('user_name_filter', '').strip()
     start_date = request.args.get('start_date', '').strip()
     end_date = request.args.get('end_date', '').strip()
 
     conn = get_db_connection()
     logs = []
     try:
-        query = "SELECT id, user_id, action, timestamp, details FROM logs WHERE 1=1"
+        # query = "SELECT id, user_id, action, timestamp, details FROM logs WHERE 1=1"
+        query = """
+            SELECT 
+                l.id, 
+                l.user_id, 
+                u.name AS user_name, -- Alias para o nome do usuário da tabela users
+                l.action, 
+                l.timestamp, 
+                l.details 
+            FROM logs l
+            LEFT JOIN users u ON l.user_id = u.id -- JOIN para buscar o nome do usuário
+            WHERE 1=1
+        """
         params = []
 
         if search_query:
             query += " AND (action LIKE ? OR details LIKE ?)"
             params.extend([f'%{search_query}%', f'%{search_query}%'])
+        
+        if user_name_filter:
+            query += " AND u.name LIKE ?"
+            params.append(f'%{user_name_filter}%')
         
         if user_id_filter:
             try:
@@ -1018,9 +1035,9 @@ def view_logs():
                 flash('ID do usuário para filtro inválido.', 'danger')
                 user_id_filter = ''
 
-        if action_filter:
-            query += " AND action LIKE ?"
-            params.append(f'%{action_filter}%')
+        # if action_filter:
+        #     query += " AND action LIKE ?"
+        #     params.append(f'%{action_filter}%')
 
         if start_date:
             query += " AND timestamp >= ?"
@@ -1033,11 +1050,8 @@ def view_logs():
         query += " ORDER BY timestamp DESC"
         logs = conn.execute(query, params).fetchall()
         
-        log_action(admin_user_id, 'Visualização de Logs', 'Filtros aplicados: ' + json.dumps(request.args.to_dict()))
-
     except Exception as e:
         flash(f'Ocorreu um erro ao buscar os logs: {e}', 'danger')
-        log_action(admin_user_id, 'Erro na Visualização de Logs', f'Erro: {e}, Filtros: {json.dumps(request.args.to_dict())}')
     finally:
         conn.close()
 
@@ -1045,8 +1059,8 @@ def view_logs():
                            titulo='Logs do Sistema',
                            logs=logs,
                            search_query=search_query,
+                           user_name_filter=user_name_filter,
                            user_id_filter=user_id_filter,
-                           action_filter=action_filter,
                            start_date=start_date,
                            end_date=end_date,
                            active_page='logs')
@@ -1075,7 +1089,6 @@ def clear_logs():
         elif days_old == 'dates':
             if not clear_start_date or not clear_end_date:
                 flash('Por favor, forneça as datas de início e fim para a limpeza por intervalo.', 'warning')
-                log_action(admin_user_id, 'Tentativa de Limpeza por Data Incompleta', 'Datas de início ou fim ausentes')
                 return redirect(url_for('view_logs'))
             
             delete_query += " AND timestamp >= ?"
@@ -1098,7 +1111,6 @@ def clear_logs():
 
         if not days_old and not action_type:
             flash('Por favor, selecione uma opção de limpeza por data ou insira um tipo de ação.', 'warning')
-            log_action(admin_user_id, 'Tentativa de Limpar Logs sem Filtro Principal', 'Nenhum critério de limpeza válido fornecido')
             return redirect(url_for('view_logs'))
 
         cursor.execute(delete_query, delete_params)
@@ -1111,7 +1123,6 @@ def clear_logs():
 
     except Exception as e:
         flash(f'Ocorreu um erro ao limpar os logs: {e}', 'danger')
-        log_action(admin_user_id, 'Erro ao Limpar Logs', f'Erro: {e}. Filtros aplicados: {json.dumps(request.form.to_dict())}')
     finally:
         conn.close()
 
@@ -1143,13 +1154,11 @@ def export_logs():
 
         os.remove(json_file_path)
 
-        log_action(admin_user_id, 'Logs Exportados', f'Logs exportados para {os.path.basename(zip_file_path)}')
         return send_file(zip_file_path, mimetype='application/zip',
                          as_attachment=True, download_name='system_logs.zip')
 
     except Exception as e:
         flash(f'Ocorreu um erro ao exportar os logs: {e}', 'danger')
-        log_action(admin_user_id, 'Erro ao Exportar Logs', f'Erro: {e}')
         return redirect(url_for('view_logs'))
     finally:
         conn.close()

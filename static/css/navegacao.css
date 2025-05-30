@@ -87,4 +87,30 @@
     font-size: 1rem;
     font-style: italic;
     margin-top: 10px;
+} 
+
+/* Estilo específico para o ícone de info no nav */
+.nav-info-icon {
+    color: inherit !important;
+    font-size: 1rem !important;
+    margin: 0 !important;
+    vertical-align: middle !important;
+}
+
+/* Estilo ultra-específico para o ícone de logs */
+.logs-counter .logs-info-icon {
+    color: var(--bs-gray-600) !important; /* Usando variável do Bootstrap */
+    font-size: 0.9rem !important;
+    margin-right: 0.25rem !important;
+    vertical-align: baseline !important;
+    position: relative;
+    top: -1px;
+}
+
+/* Reset para outros ícones (proteção extra) */
+.bi-info-circle:not(.logs-info-icon) {
+    color: inherit !important;
+    font-size: inherit !important;
+    margin-right: inherit !important;
+    vertical-align: inherit !important;
 }

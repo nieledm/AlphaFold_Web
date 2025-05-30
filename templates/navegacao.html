@@ -47,7 +47,7 @@
                 </li>
                 <li>
                     <a href="{{ url_for('view_logs') }}" 
-                        class="dropdown-item {% if active_page == 'desativados' %}active{% endif %}">
+                        class="dropdown-item {% if active_page == 'logs' %}active{% endif %}">
                         Visualizar Logs
                     </a>
                 </li>
@@ -56,6 +56,5 @@
     {% endif %}
     <a href="{{ url_for('sobre') }}" class="btn btn-icon btn-nav {% if active_page == 'sobre' %}active{% endif %}" title="Sobre">
         i
-        <i class="bi bi-info-circle"></i>
-   </a>
+    </a>
 </div>

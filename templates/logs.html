@@ -4,108 +4,277 @@
     {{ super() }}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/titulosUsuarios.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/logs.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
 {% endblock %}
 
 {% block content %}
     <div class="title-container top-spacing-reduced">
         <h1 class="page-title">
             <span class="title-icon">
-                <i class="fas fa-clipboard-list text-info me-2"></i> {# Ícone para logs #}
+                <i class="fas fa-clipboard-list text-info me-2"></i>
             </span>
             <span class="title-highlight">{{ titulo }}</span>
         </h1>
     </div>
 
-    <form method="GET" action="{{ url_for('view_logs') }}" class="mb-4 p-3 border rounded shadow-sm">
-        <div class="row g-3">
-            <div class="col-md-4">
-                <label for="search" class="form-label">Buscar na Ação/Detalhes:</label>
-                <input type="text" class="form-control" id="search" name="search" value="{{ search_query }}" placeholder="Ex: login, upload, erro">
-            </div>
-            <div class="col-md-2">
-                <label for="user_id_filter" class="form-label">ID do Usuário:</label>
-                <input type="text" class="form-control" id="user_id_filter" name="user_id_filter" value="{{ user_id_filter }}" placeholder="Ex: 1, 5">
-            </div>
-            <div class="col-md-2">
-                <label for="action_filter" class="form-label">Filtrar por Ação:</label>
-                <input type="text" class="form-control" id="action_filter" name="action_filter" value="{{ action_filter }}" placeholder="Ex: Login Bem-sucedido">
-            </div>
-            <div class="col-md-2">
-                <label for="start_date" class="form-label">Data Início:</label>
-                <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
-            </div>
-            <div class="col-md-2">
-                <label for="end_date" class="form-label">Data Fim:</label>
-                <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
-            </div>
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="bi bi-funnel me-2"></i>Filtros</h5>
         </div>
-        <div class="row mt-3">
-            <div class="col-12 d-flex justify-content-end gap-2">
-                <button type="submit" class="btn btn-primary">Aplicar Filtros</button>
-                <a href="{{ url_for('view_logs') }}" class="btn btn-secondary">Limpar Filtros</a>
-            </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('view_logs') }}">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label for="search" class="form-label">Buscar:</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control" id="search" name="search" value="{{ search_query }}" placeholder="Ação ou detalhes">
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="user_name_filter" class="form-label">Nome:</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-person"></i></span>
+                            <input type="text" class="form-control" id="user_name_filter" name="user_name_filter" value="{{ user_name_filter }}" placeholder="Nome usuário">
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="user_id_filter" class="form-label">ID Usuário:</label>
+                        <div class="input-group">
+                            <span class="input-group-text">#</span>
+                            <input type="text" class="form-control" id="user_id_filter" name="user_id_filter" value="{{ user_id_filter }}" placeholder="ID usuário">
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="start_date" class="form-label">Data Início:</label>
+                        <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="end_date" class="form-label">Data Fim:</label>
+                        <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
+                    </div>
+                    <div class="col-md-1 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-filter me-1"></i> Filtrar
+                        </button>
+                    </div>
+                </div>
+            </form>
         </div>
-    </form>
-
-    <div class="d-flex justify-content-end gap-2 mb-4">
-        <form method="POST" action="{{ url_for('clear_logs') }}" onsubmit="return confirm('Tem certeza que deseja limpar os logs? Esta ação é irreversível.');">
-            <div class="input-group">
-                <select name="days_old" class="form-select" title="Limpar logs mais antigos que...">
-                    <option value="">Selecione uma opção</option>
-                    <option value="dates">Indique as datas</option>
-                    <option value="7">Últimos 7 dias</option>
-                    <option value="30">Últimos 30 dias</option>
-                    <option value="90">Últimos 90 dias</option>
-                    <option value="365">Último ano</option>
-                    <option value="all">Tudo</option>
-                </select>
-            </div>
-            <div id="date_range_inputs" style="display: none;" class="input-group mt-2">
-                <span class="input-group-text">De:</span>
-                <input type="date" name="clear_start_date" class="form-control">
-                <span class="input-group-text">Até:</span>
-                <input type="date" name="clear_end_date" class="form-control">
-            </div>
-            <div class="d-grid gap-2 mt-2">
-                <button type="submit" class="btn btn-danger">Limpar Logs</button>
-            </div>
-        </form>
-
-        <form method="POST" action="{{ url_for('export_logs') }}">
-            <button type="submit" class="btn btn-success">Exportar Logs (JSON)</button>
-        </form>
     </div>
 
-    <div class="table-responsive">
-        {% if logs %}
-        <table class="table table-bordered table-hover">
-            <thead class="table-light">
-                <tr>
-                    <th>ID</th>
-                    <th>Usuário (ID)</th>
-                    <th>Ação</th>
-                    <th>Timestamp</th>
-                    <th>Detalhes</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for log in logs %}
-                <tr>
-                    <td>{{ log.id }}</td>
-                    <td>{{ log.user_id if log.user_id else 'N/A' }}</td>
-                    <td>{{ log.action }}</td>
-                    <td>{{ log.timestamp }}</td>
-                    <td class="log-details">{{ log.details if log.details else 'N/A' }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <p>Nenhum log encontrado com os filtros aplicados.</p>
-        {% endif %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-list-check me-2"></i>Registros</h5>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#clearLogsModal">
+                    <i class="bi bi-trash me-1"></i> Limpar
+                </button>
+                <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#exportLogsModal">
+                    <i class="bi bi-download me-1"></i> Exportar
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="logs-counter text-muted">
+                    <i class="bi bi-info-circle"></i>
+                    Mostrando {{ logs|length }} de {{ total_logs }} registros
+                </span>
+                <a href="{{ url_for('view_logs') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i> Limpar filtros
+                </a>
+            </div>
+
+            {% if logs %}
+            <div class="table-responsive">
+                <table class="table table-hover table-striped table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="sortable" data-sort="id">
+                                ID <i class="bi bi-arrow-down-up"></i>
+                            </th>
+                            <th class="sortable" data-sort="user">
+                                Usuário <i class="bi bi-arrow-down-up"></i>
+                            </th>
+                            <th class="sortable" data-sort="action">
+                                Ação <i class="bi bi-arrow-down-up"></i>
+                            </th>
+                            <th class="sortable" data-sort="timestamp">
+                                Data/Hora <i class="bi bi-arrow-down-up"></i>
+                            </th>
+                            <th>Detalhes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td>{{ log.id }}</td>
+                            <td>
+                                {% if log.user_name %}
+                                    <span class="fw-semibold">{{ log.user_name }}</span>
+                                    <small class="text-muted d-block">ID: {{ log.user_id }}</small>
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                    <small class="text-muted d-block">ID: {{ log.user_id if log.user_id else 'N/A' }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge 
+                                    {% if log.action == 'login' %}bg-success
+                                    {% elif log.action == 'delete' %}bg-danger
+                                    {% elif log.action == 'update' %}bg-warning text-dark
+                                    {% elif log.action == 'upload' %}bg-primary
+                                    {% else %}bg-secondary
+                                    {% endif %}">
+                                    {{ log.action }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="d-block">{{ log.timestamp.split(' ')[0] }}</span>
+                                <small class="text-muted">{{ log.timestamp.split(' ')[1] }}</small>
+                            </td>
+                            <td class="log-details">
+                                <div class="details-content">
+                                    {{ log.details if log.details else 'N/A' }}
+                                </div>
+                                {% if log.details and log.details|length > 50 %}
+                                <button class="btn btn-sm btn-link p-0 toggle-details" data-bs-toggle="tooltip" title="Mostrar mais">
+                                    <i class="bi bi-chevron-down"></i>
+                                </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-warning mb-0">
+                <i class="bi bi-exclamation-triangle me-2"></i>Nenhum log encontrado com os filtros aplicados.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Modal Limpar Logs -->
+    <div class="modal fade" id="clearLogsModal" tabindex="-1" aria-labelledby="clearLogsModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST" action="{{ url_for('clear_logs') }}" onsubmit="return confirm('Tem certeza que deseja limpar os logs selecionados? Esta ação é irreversível.');">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="clearLogsModalLabel">
+                            <i class="bi bi-trash me-2"></i>Limpar Logs
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="days_old_select" class="form-label">Limpar logs:</label>
+                            <select name="days_old" id="days_old_select" class="form-select">
+                                <option value="">Selecione uma opção</option>
+                                <option value="dates">Por intervalo de datas</option>
+                                <option value="7">Mais antigos que 7 dias</option>
+                                <option value="30">Mais antigos que 30 dias</option>
+                                <option value="90">Mais antigos que 90 dias</option>
+                                <option value="365">Mais antigos que 1 ano</option>
+                                <option value="all">Todos os logs</option>
+                            </select>
+                        </div>
+                        <div id="date_range_inputs" style="display: none;">
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label for="clear_start_date" class="form-label">Data inicial:</label>
+                                    <input type="date" name="clear_start_date" class="form-control">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="clear_end_date" class="form-label">Data final:</label>
+                                    <input type="date" name="clear_end_date" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-danger">Confirmar Limpeza</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Exportar Logs -->
+    <div class="modal fade" id="exportLogsModal" tabindex="-1" aria-labelledby="exportLogsModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST" action="{{ url_for('export_logs') }}">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="exportLogsModalLabel">
+                            <i class="bi bi-download me-2"></i>Exportar Logs
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="export_format" class="form-label">Formato:</label>
+                            <select name="export_format" class="form-select">
+                                <option value="json">JSON</option>
+                                <option value="csv">CSV</option>
+                                <option value="excel">Excel</option>
+                            </select>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="include_current_filters" id="include_current_filters" checked>
+                            <label class="form-check-label" for="include_current_filters">
+                                Manter os filtros atuais
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success">Exportar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 {% endblock %}
 
 {% block scripts %}
+    {{ super() }}
     <script src="{{ url_for('static', filename='js/logs.js') }}"></script>
+    <script>
+        // Ativar tooltips
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        // Mostrar/ocultar intervalos de datas para limpeza
+        document.getElementById('days_old_select').addEventListener('change', function() {
+            const dateInputs = document.getElementById('date_range_inputs');
+            dateInputs.style.display = this.value === 'dates' ? 'block' : 'none';
+        });
+
+        // Alternar visibilidade dos detalhes completos
+        document.querySelectorAll('.toggle-details').forEach(button => {
+            button.addEventListener('click', function() {
+                const detailsContent = this.closest('.log-details').querySelector('.details-content');
+                detailsContent.classList.toggle('expanded');
+                this.innerHTML = detailsContent.classList.contains('expanded') ? 
+                    '<i class="bi bi-chevron-up"></i>' : '<i class="bi bi-chevron-down"></i>';
+                this.setAttribute('data-bs-original-title', 
+                    detailsContent.classList.contains('expanded') ? 'Mostrar menos' : 'Mostrar mais');
+            });
+        });
+
+        // Ordenação por coluna
+        document.querySelectorAll('.sortable').forEach(header => {
+            header.addEventListener('click', function() {
+                const sortField = this.dataset.sort;
+                // Implementar lógica de ordenação aqui (pode requerer recarregar a página com parâmetros)
+                console.log('Ordenar por:', sortField);
+            });
+        });
+    </script>
 {% endblock %}
