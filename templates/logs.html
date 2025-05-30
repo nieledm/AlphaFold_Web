@@ -1,0 +1,112 @@
+{# templates/logs.html #}
+{% extends 'base.html' %} {# Ou 'base_usuarios.html' se preferir #}
+
+{% block css %}
+    {{ super() }} {# Mantém o CSS do base.html #}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/titulosUsuarios.css') }}"> {# Se usar o estilo de título #}
+    <style>
+        /* Estilos adicionais para a tabela de logs, se necessário */
+        .log-details {
+            max-width: 400px; /* Limita a largura da coluna de detalhes */
+            white-space: nowrap; /* Evita quebra de linha */
+            overflow: hidden; /* Esconde o excesso */
+            text-overflow: ellipsis; /* Adiciona "..." */
+        }
+        .log-details:hover {
+            white-space: normal; /* Quebra a linha ao passar o mouse */
+            overflow: visible; /* Torna o conteúdo visível */
+            text-overflow: unset; /* Remove "..." ao passar o mouse */
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="title-container top-spacing-reduced">
+        <h1 class="page-title">
+            <span class="title-icon">
+                <i class="fas fa-clipboard-list text-info me-2"></i> {# Ícone para logs #}
+            </span>
+            <span class="title-highlight">{{ titulo }}</span>
+        </h1>
+    </div>
+
+    <form method="GET" action="{{ url_for('view_logs') }}" class="mb-4 p-3 border rounded shadow-sm">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label for="search" class="form-label">Buscar na Ação/Detalhes:</label>
+                <input type="text" class="form-control" id="search" name="search" value="{{ search_query }}" placeholder="Ex: login, upload, erro">
+            </div>
+            <div class="col-md-2">
+                <label for="user_id_filter" class="form-label">ID do Usuário:</label>
+                <input type="text" class="form-control" id="user_id_filter" name="user_id_filter" value="{{ user_id_filter }}" placeholder="Ex: 1, 5">
+            </div>
+            <div class="col-md-2">
+                <label for="action_filter" class="form-label">Filtrar por Ação:</label>
+                <input type="text" class="form-control" id="action_filter" name="action_filter" value="{{ action_filter }}" placeholder="Ex: Login Bem-sucedido">
+            </div>
+            <div class="col-md-2">
+                <label for="start_date" class="form-label">Data Início:</label>
+                <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
+            </div>
+            <div class="col-md-2">
+                <label for="end_date" class="form-label">Data Fim:</label>
+                <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-12 d-flex justify-content-end gap-2">
+                <button type="submit" class="btn btn-primary">Aplicar Filtros</button>
+                <a href="{{ url_for('view_logs') }}" class="btn btn-secondary">Limpar Filtros</a>
+            </div>
+        </div>
+    </form>
+
+    <div class="d-flex justify-content-end gap-2 mb-4">
+        <form method="POST" action="{{ url_for('clear_logs') }}" onsubmit="return confirm('Tem certeza que deseja limpar os logs? Esta ação é irreversível.');">
+            {# Você pode adicionar campos ocultos aqui para filtros de limpeza se desejar, como no clear_logs do Flask #}
+            <div class="input-group">
+                <select name="days_old" class="form-select" title="Limpar logs mais antigos que...">
+                    <option value="">Limpar por data</option>
+                    <option value="7">Últimos 7 dias</option>
+                    <option value="30">Últimos 30 dias</option>
+                    <option value="90">Últimos 90 dias</option>
+                    <option value="365">Último ano</option>
+                </select>
+                <input type="text" name="action_type" class="form-control" placeholder="Tipo de ação (opcional)">
+                <button type="submit" class="btn btn-danger">Limpar Logs</button>
+            </div>
+        </form>
+        <form method="POST" action="{{ url_for('export_logs') }}">
+            <button type="submit" class="btn btn-success">Exportar Logs (JSON)</button>
+        </form>
+    </div>
+
+    <div class="table-responsive">
+        {% if logs %}
+        <table class="table table-bordered table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>Usuário (ID)</th>
+                    <th>Ação</th>
+                    <th>Timestamp</th>
+                    <th>Detalhes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.id }}</td>
+                    <td>{{ log.user_id if log.user_id else 'N/A' }}</td>
+                    <td>{{ log.action }}</td>
+                    <td>{{ log.timestamp }}</td>
+                    <td class="log-details">{{ log.details if log.details else 'N/A' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>Nenhum log encontrado com os filtros aplicados.</p>
+        {% endif %}
+    </div>
+{% endblock %}

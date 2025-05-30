@@ -3,3 +3,5 @@ Para usar o envio de emails, instalar via bash
 
 Para obter data e hora local
     pip install pytz
+
+pip install requests

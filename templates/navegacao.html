@@ -20,11 +20,11 @@
            </li>
        </ul>
    </div>  
-    <!-- Dropdown 2: Usuários -->
+    <!-- Dropdown 2: Admin -->
     {% if session.get('is_admin') %}
         <div class="dropdown">
             <button class="btn btn-nav dropdown-toggle" type="button" id="dropdownMenuUsuarios" data-bs-toggle="dropdown" aria-expanded="false">
-                Usuários
+                Administração
             </button>
             <ul class="dropdown-menu" aria-labelledby="dropdownMenuUsuarios">
                 <li>
@@ -43,6 +43,12 @@
                     <a href="{{ url_for('usuarios_desativados') }}" 
                         class="dropdown-item {% if active_page == 'desativados' %}active{% endif %}">
                         Usuários Desativados
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('view_logs') }}" 
+                        class="dropdown-item {% if active_page == 'desativados' %}active{% endif %}">
+                        Visualizar Logs
                     </a>
                 </li>
             </ul>

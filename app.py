@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, flash, request, session, g, send_file
+from flask import Flask, render_template, redirect, url_for, flash, request, session, g, send_file, jsonify
 import os
 import subprocess
 import json
@@ -552,12 +552,18 @@ def builder_json_form():
 
 @app.route('/generate_json', methods=['POST'])
 def generate_json():
+    user_id = session.get('user_id')
+    user_name = session.get('user_name', 'Usuário Desconhecido')
+
     if 'user_id' not in session:
         flash('Por favor, faça login primeiro.', 'warning')
+        log_action(None, 'Tentativa de Gerar JSON (Não Autenticado)')
         return redirect(url_for('login'))
 
     data = request.form
     json_data = {"inputs": []}
+
+    log_action(user_id, 'Início da Geração de JSON', f'Usuário: {user_name}')
 
     # === Dados principais ===
     entity = data.get("entity", "").strip()
@@ -624,6 +630,8 @@ def generate_json():
         tmpfile_path = tmpfile.name
         tmpfile_name = os.path.basename(tmpfile_path)
 
+        log_action(user_id, 'JSON Gerado Com Sucesso', f'Nome temporário: {tmpfile_name}')
+
     # === Upload automático para /upload ===
     with open(tmpfile_path, 'rb') as f:
         upload_response = requests.post(
@@ -634,8 +642,10 @@ def generate_json():
 
     if upload_response.status_code == 302:  # redirecionamento com sucesso
         flash("Arquivo gerado e enviado com sucesso!", "success")
+        log_action(user_id, 'JSON Gerado e Enviado', f'Nome do arquivo: {tmpfile_name}')
     else:
         flash("Erro ao enviar o arquivo gerado para processamento.", "danger")
+        log_action(user_id, 'Erro ao Enviar JSON Gerado', f'Nome do arquivo: {tmpfile_name}, Status: {upload_response.status_code}, Resposta: {upload_response.text}')
 
     # === Retorna para download (caso deseje salvar também) ===
     return send_file(tmpfile_path, mimetype='application/json', as_attachment=True, download_name='input_alphafold.json')
@@ -643,6 +653,10 @@ def generate_json():
 @app.route('/upload', methods=['POST'])
 def upload_file():
     """Processa upload de arquivos para o AlphaFold"""
+    user_id = session.get('user_id')
+    user_name = session.get('user_name', 'Usuário Desconhecido')
+    user_email = session.get('user_email', 'Email Desconhecido')
+
     dict(session)
     #Time Zone e data
     tz = pytz.timezone('America/Sao_Paulo')
@@ -651,13 +665,20 @@ def upload_file():
 
     if not all(key in session for key in ['user_id', 'user_name', 'user_email']):
         flash('Por favor, faça login novamente.', 'warning')
+        log_action(None, 'Tentativa de Upload (Sessão Inválida)', 'Usuário desconhecido ou sessão expirada')
         return redirect(url_for('login'))
+    
+    log_action(user_id, 'Início de Upload de Arquivo', f'Usuário: {user_name}')
 
     if 'file' not in request.files:
+        flash('Nenhum arquivo enviado.', 'danger')
+        log_action(user_id, 'Erro de Upload', 'Nenhum arquivo na requisição')
         return 'No file part'
 
     file = request.files['file']
     if file.filename == '':
+        flash('Nenhum arquivo selecionado.', 'danger')
+        log_action(user_id, 'Erro de Upload', 'Nome de arquivo vazio')
         return 'No selected file'
 
     if file and file.filename.endswith('.json'):
@@ -689,6 +710,8 @@ def upload_file():
         conn.commit()
         conn.close()
 
+        log_action(user_id, 'Arquivo JSON Uploaded', f'Nome: {filename}, BaseName: {base_name}')
+
         # Monta comando e roda em background
         command = (
             f"docker run -it "
@@ -707,28 +730,40 @@ def upload_file():
         )).start()
                 
         flash("Arquivo enviado. Você será notificado quando o processamento terminar.", 'info')
+        log_action(user_id, 'Processamento AlphaFold Iniciado', f'BaseName: {base_name}')
         return redirect(url_for('dashboard'))
 
     return 'Invalid file format'
 
 def run_alphafold_in_background(command, user_name, user_email, base_name, user_id):
+
+    log_action(user_id, 'Executando AlphaFold em background', f'Projeto: {base_name}')
     
     output_user_dir = os.path.join(ALPHAFOLD_OUTPUT_BASE, user_name)
     output_subdir = os.path.join(output_user_dir, base_name)
     
     os.makedirs(output_user_dir, exist_ok=True)
-    os.makedirs(output_subdir, exist_ok=True)     
+    os.makedirs(output_subdir, exist_ok=True)
+
+    process_result = None     
     
     subprocess.run(command, shell=True)
+    process_result = subprocess.run(command, shell=True, capture_output=True, text=True, check=False)
     result_file = os.path.join(output_subdir, 'alphafold_prediction', 'alphafold_prediction_model.cif')
 
     conn = get_db_connection()
     if os.path.exists(result_file):
         # Atualiza status para COMPLETO
         conn.execute("UPDATE uploads SET status = ? WHERE base_name = ?", ('COMPLETO', base_name))
+        log_action(user_id, 'Processamento AlphaFold Concluído', f'Projeto: {base_name}. Arquivo de saída: {result_file}')
         send_processing_complete_email(user_name, user_email, base_name, user_id)
     else:
         conn.execute("UPDATE uploads SET status = ? WHERE base_name = ?", ('ERRO', base_name))
+        stdout_info = process_result.stdout if process_result else "N/A"
+        stderr_info = process_result.stderr if process_result else "N/A"
+        log_details = f"Projeto: {base_name}. Arquivo de resultado não gerado. " \
+                        f"stdout: {stdout_info}, stderr: {stderr_info}"
+        log_action(user_id, 'Processamento AlphaFold com ERRO', log_details)
         send_email(user_email, "Erro no processamento do AlphaFold", f"<p>Olá {user_name},</p><p>Ocorreu um erro e o arquivo de resultado não foi gerado.</p>")
     conn.commit()
     conn.close()
@@ -736,11 +771,11 @@ def run_alphafold_in_background(command, user_name, user_email, base_name, user_
 @app.route('/download/<base_name>')
 def download_result(base_name):
     """Permite download do arquivo processado se pronto"""
-    
-    # Obtém o nome de usuário da sessão
+    user_id = session.get('user_id')
     user_name = session.get('user_name')
     if not user_name:
         flash('Usuário não encontrado. Faça login novamente.', 'warning')
+        log_action(None, 'Tentativa de Download (Não Autenticado)', f'BaseName: {base_name}')
         return redirect(url_for('login'))
     
     # Diretório específico do usuário
@@ -749,6 +784,7 @@ def download_result(base_name):
 
     if not os.path.exists(folder_to_zip):
         flash('Resultados não encontrados.', 'danger')
+        log_action(user_id, 'Download Negado', f'Projeto {base_name} não encontrado no BD.')
         return redirect(url_for('dashboard'))
 
     # Cria um arquivo zip temporário
@@ -761,6 +797,7 @@ def download_result(base_name):
                 zipf.write(full_path, arcname)
 
     temp_zip.seek(0)
+    log_action(user_id, 'Download de Resultado', f'Projeto: {base_name}. Arquivo: {base_name}_result.zip')
     return send_file(temp_zip.name, mimetype='application/zip',
                      as_attachment=True, download_name=f"{base_name}_result.zip")
 
@@ -781,21 +818,6 @@ def sobre():
         ]
     }
     return render_template('sobre.html', project_info=project_info, active_page='sobre')
-
-def log_action(user_id, action, details=None):
-    """Registra uma ação no banco de dados de logs."""
-    conn = get_db_connection()
-    tz = pytz.timezone('America/Sao_Paulo')
-    now = datetime.now(tz)
-    timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
-    try:
-        conn.execute('INSERT INTO logs (user_id, action, timestamp, details) VALUES (?, ?, ?, ?)',
-                     (user_id, action, timestamp, details))
-        conn.commit()
-    except Exception as e:
-        print(f"Erro ao registrar log: {e}")
-    finally:
-        conn.close()
 
 @app.route('/admin/export_data')
 def export_data():
@@ -910,6 +932,186 @@ def export_data():
 
 #     return render_template('import_data_form.html') # <------ criar template
 
+# ==============================================================
+# LOGS
+# ==============================================================
+def log_action(user_id, action, details=None):
+    """Registra uma ação no banco de dados de logs."""
+    conn = get_db_connection()
+    tz = pytz.timezone('America/Sao_Paulo')
+    now = datetime.now(tz)
+    timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
+    try:
+        conn.execute('INSERT INTO logs (user_id, action, timestamp, details) VALUES (?, ?, ?, ?)',
+                     (user_id, action, timestamp, details))
+        conn.commit()
+    except Exception as e:
+        print(f"Erro ao registrar log: {e}")
+    finally:
+        conn.close()
+
+@app.route('/admin/view_logs', methods=['GET'])
+def view_logs():
+    """Exibe os logs do sistema com opções de filtro."""
+    admin_user_id = session.get('user_id')
+    if not session.get('is_admin'):
+        flash('Acesso não autorizado.', 'danger')
+        log_action(admin_user_id, 'Tentativa de acesso não autorizado', 'Rota: view_logs')
+        return redirect(url_for('dashboard'))
+
+    search_query = request.args.get('search', '').strip()
+    user_id_filter = request.args.get('user_id_filter', '').strip()
+    action_filter = request.args.get('action_filter', '').strip()
+    start_date = request.args.get('start_date', '').strip()
+    end_date = request.args.get('end_date', '').strip()
+
+    conn = get_db_connection()
+    logs = []
+    try:
+        query = "SELECT id, user_id, action, timestamp, details FROM logs WHERE 1=1"
+        params = []
+
+        if search_query:
+            query += " AND (action LIKE ? OR details LIKE ?)"
+            params.extend([f'%{search_query}%', f'%{search_query}%'])
+        
+        if user_id_filter:
+            try:
+                user_id_filter_int = int(user_id_filter)
+                query += " AND user_id = ?"
+                params.append(user_id_filter_int)
+            except ValueError:
+                flash('ID do usuário para filtro inválido.', 'danger')
+                # Logar a tentativa de filtro inválida
+                log_action(admin_user_id, 'Filtro de Logs Inválido', f'Tentativa de filtro por user_id inválido: {user_id_filter}')
+                user_id_filter = '' # Limpa o campo para o template
+
+        if action_filter:
+            query += " AND action LIKE ?"
+            params.append(f'%{action_filter}%')
+
+        if start_date:
+            query += " AND timestamp >= ?"
+            params.append(start_date + " 00:00:00") # Adiciona hora para cobrir o dia inteiro
+
+        if end_date:
+            query += " AND timestamp <= ?"
+            params.append(end_date + " 23:59:59") # Adiciona hora para cobrir o dia inteiro
+
+        query += " ORDER BY timestamp DESC"
+        logs = conn.execute(query, params).fetchall()
+        
+        log_action(admin_user_id, 'Visualização de Logs', 'Filtros aplicados: ' + json.dumps(request.args.to_dict()))
+
+    except Exception as e:
+        flash(f'Ocorreu um erro ao buscar os logs: {e}', 'danger')
+        log_action(admin_user_id, 'Erro na Visualização de Logs', f'Erro: {e}, Filtros: {json.dumps(request.args.to_dict())}')
+    finally:
+        conn.close()
+
+    return render_template('logs.html', 
+                           titulo='Logs do Sistema',
+                           logs=logs,
+                           search_query=search_query,
+                           user_id_filter=user_id_filter,
+                           action_filter=action_filter,
+                           start_date=start_date,
+                           end_date=end_date,
+                           active_page='logs') # Para o menu de navegação
+
+@app.route('/admin/clear_logs', methods=['POST'])
+def clear_logs():
+    """Limpa logs do sistema (opcionalmente com filtros)."""
+    admin_user_id = session.get('user_id')
+    if not session.get('is_admin'):
+        flash('Acesso não autorizado.', 'danger')
+        log_action(admin_user_id, 'Tentativa de acesso não autorizado', 'Rota: clear_logs')
+        return redirect(url_for('dashboard'))
+
+    # Para limpeza por filtro, você pode adicionar campos no formulário HTML e request.form.get()
+    # Por simplicidade, faremos uma limpeza de todos os logs mais antigos que X dias ou um tipo específico
+    # Você pode adaptar isso para receber filtros do formulário, como na view_logs.
+
+    days_old = request.form.get('days_old', type=int) # Exemplo: limpar logs mais antigos que X dias
+    action_type = request.form.get('action_type', '').strip() # Exemplo: limpar logs de um tipo de ação específica
+
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        delete_query = "DELETE FROM logs WHERE 1=1"
+        delete_params = []
+        details_for_log = []
+
+        if days_old and days_old > 0:
+            delete_query += " AND timestamp < datetime('now', ?)"
+            delete_params.append(f'-{days_old} days')
+            details_for_log.append(f'{days_old} dias antigos')
+
+        if action_type:
+            delete_query += " AND action LIKE ?"
+            delete_params.append(f'%{action_type}%')
+            details_for_log.append(f'Ação: {action_type}')
+
+        if not days_old and not action_type: # Se nenhum filtro for aplicado, limpar todos
+            flash('Por favor, selecione um filtro para limpar os logs.', 'warning')
+            log_action(admin_user_id, 'Tentativa de Limpar Logs sem Filtro', 'Nenhum filtro de limpeza fornecido')
+            return redirect(url_for('view_logs'))
+
+
+        cursor.execute(delete_query, delete_params)
+        conn.commit()
+        
+        rows_deleted = cursor.rowcount
+        flash(f'Foram removidos {rows_deleted} logs com sucesso!', 'success')
+        log_action(admin_user_id, 'Logs Limpos', f'Removidos {rows_deleted} logs. Filtros: {"; ".join(details_for_log) if details_for_log else "Todos"}')
+
+    except Exception as e:
+        flash(f'Ocorreu um erro ao limpar os logs: {e}', 'danger')
+        log_action(admin_user_id, 'Erro ao Limpar Logs', f'Erro: {e}')
+    finally:
+        conn.close()
+
+    return redirect(url_for('view_logs'))
+
+@app.route('/admin/export_logs', methods=['POST'])
+def export_logs():
+    """Exporta os logs do sistema no formato JSON compactado em ZIP."""
+    admin_user_id = session.get('user_id')
+    if not session.get('is_admin'):
+        flash('Acesso não autorizado.', 'danger')
+        log_action(admin_user_id, 'Tentativa de acesso não autorizado', 'Rota: export_logs')
+        return redirect(url_for('dashboard'))
+
+    conn = get_db_connection()
+    logs_data = []
+    try:
+        # Recupera todos os logs
+        logs = conn.execute('SELECT id, user_id, action, timestamp, details FROM logs ORDER BY timestamp DESC').fetchall()
+        for log in logs:
+            logs_data.append(dict(log)) # Converte Row para dicionário para JSON
+
+        # Cria um arquivo JSON temporário
+        json_file_path = tempfile.NamedTemporaryFile(delete=False, suffix='.json', mode='w', encoding='utf-8').name
+        with open(json_file_path, 'w', encoding='utf-8') as f:
+            json.dump(logs_data, f, indent=4, ensure_ascii=False) # ensure_ascii=False para caracteres especiais
+
+        # Compacta o arquivo JSON em um ZIP
+        zip_file_path = tempfile.NamedTemporaryFile(delete=False, suffix='.zip').name
+        with zipfile.ZipFile(zip_file_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+            zf.write(json_file_path, os.path.basename(json_file_path)) # Adiciona o JSON ao ZIP
+
+        os.remove(json_file_path) # Remove o arquivo JSON temporário após compactar
+
+        log_action(admin_user_id, 'Logs Exportados', f'Logs exportados para {os.path.basename(zip_file_path)}')
+        return send_file(zip_file_path, mimetype='application/zip',
+                         as_attachment=True, download_name='system_logs.zip')
+
+    except Exception as e:
+        flash(f'Ocorreu um erro ao exportar os logs: {e}', 'danger')
+        log_action(admin_user_id, 'Erro ao Exportar Logs', f'Erro: {e}')
+        return redirect(url_for('view_logs'))
+    finally:
+        conn.close()
 
 # ==============================================================
 # FUNÇÕES DE CONTEXTO E INICIALIZAÇÃO
