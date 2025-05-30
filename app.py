@@ -1,4 +1,5 @@
-from flask import Flask, render_template, redirect, url_for, flash, request, session, g, send_file, jsonify
+from functools import wraps
+from flask import Flask, render_template, redirect, url_for, flash, request, session, g, send_file, jsonify, current_app
 import os
 import subprocess
 import json
@@ -36,6 +37,39 @@ ALPHAFOLD_DB = '/str1/projects/AI-DD/alphafold3/alphafold3_DB'
 EMAIL_SENDER = 'nieledm@gmail.com'
 EMAIL_PASSWORD = 'zlde qbxb zvif bfpg'
 serializer = URLSafeTimedSerializer(app.secret_key)
+
+# ==============================================================
+# DECORADORES DE AUTENTICAÇÃO E AUTORIZAÇÃO
+# ==============================================================
+
+def login_required(f):
+    """
+    Decorador para rotas que exigem que o usuário esteja logado.
+    Redireciona para a página de login se o usuário não estiver na sessão.
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            flash('Você precisa estar logado para acessar esta página.', 'warning')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    """
+    Decorador para rotas que exigem que o usuário seja um administrador.
+    Redireciona para o dashboard ou página de login se não for admin.
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            flash('Você precisa estar logado para acessar esta página.', 'warning')
+            return redirect(url_for('login'))
+        if not session.get('is_admin'):
+            flash('Acesso não autorizado. Apenas administradores podem acessar esta página.', 'danger')
+            return redirect(url_for('dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 # ==============================================================
 # FUNÇÕES DE BANCO DE DADOS
@@ -982,9 +1016,7 @@ def view_logs():
                 params.append(user_id_filter_int)
             except ValueError:
                 flash('ID do usuário para filtro inválido.', 'danger')
-                # Logar a tentativa de filtro inválida
-                log_action(admin_user_id, 'Filtro de Logs Inválido', f'Tentativa de filtro por user_id inválido: {user_id_filter}')
-                user_id_filter = '' # Limpa o campo para o template
+                user_id_filter = ''
 
         if action_filter:
             query += " AND action LIKE ?"
@@ -992,11 +1024,11 @@ def view_logs():
 
         if start_date:
             query += " AND timestamp >= ?"
-            params.append(start_date + " 00:00:00") # Adiciona hora para cobrir o dia inteiro
+            params.append(start_date + " 00:00:00")
 
         if end_date:
             query += " AND timestamp <= ?"
-            params.append(end_date + " 23:59:59") # Adiciona hora para cobrir o dia inteiro
+            params.append(end_date + " 23:59:59")
 
         query += " ORDER BY timestamp DESC"
         logs = conn.execute(query, params).fetchall()
@@ -1017,23 +1049,18 @@ def view_logs():
                            action_filter=action_filter,
                            start_date=start_date,
                            end_date=end_date,
-                           active_page='logs') # Para o menu de navegação
+                           active_page='logs')
 
 @app.route('/admin/clear_logs', methods=['POST'])
+@admin_required
 def clear_logs():
-    """Limpa logs do sistema (opcionalmente com filtros)."""
+    """Limpa logs do sistema com base em filtros."""
     admin_user_id = session.get('user_id')
-    if not session.get('is_admin'):
-        flash('Acesso não autorizado.', 'danger')
-        log_action(admin_user_id, 'Tentativa de acesso não autorizado', 'Rota: clear_logs')
-        return redirect(url_for('dashboard'))
-
-    # Para limpeza por filtro, você pode adicionar campos no formulário HTML e request.form.get()
-    # Por simplicidade, faremos uma limpeza de todos os logs mais antigos que X dias ou um tipo específico
-    # Você pode adaptar isso para receber filtros do formulário, como na view_logs.
-
-    days_old = request.form.get('days_old', type=int) # Exemplo: limpar logs mais antigos que X dias
-    action_type = request.form.get('action_type', '').strip() # Exemplo: limpar logs de um tipo de ação específica
+    
+    days_old = request.form.get('days_old')
+    action_type = request.form.get('action_type', '').strip()
+    clear_start_date = request.form.get('clear_start_date', '').strip()
+    clear_end_date = request.form.get('clear_end_date', '').strip()
 
     conn = get_db_connection()
     try:
@@ -1042,32 +1069,49 @@ def clear_logs():
         delete_params = []
         details_for_log = []
 
-        if days_old and days_old > 0:
-            delete_query += " AND timestamp < datetime('now', ?)"
-            delete_params.append(f'-{days_old} days')
-            details_for_log.append(f'{days_old} dias antigos')
+        if days_old == 'all':
+            delete_query = "DELETE FROM logs"
+            details_for_log.append('Todos os logs')
+        elif days_old == 'dates':
+            if not clear_start_date or not clear_end_date:
+                flash('Por favor, forneça as datas de início e fim para a limpeza por intervalo.', 'warning')
+                log_action(admin_user_id, 'Tentativa de Limpeza por Data Incompleta', 'Datas de início ou fim ausentes')
+                return redirect(url_for('view_logs'))
+            
+            delete_query += " AND timestamp >= ?"
+            delete_params.append(clear_start_date + " 00:00:00")
+            details_for_log.append(f'De: {clear_start_date}')
 
+            delete_query += " AND timestamp <= ?"
+            delete_params.append(clear_end_date + " 23:59:59")
+            details_for_log.append(f'Até: {clear_end_date}')
+        elif days_old and days_old.isdigit() and int(days_old) > 0:
+            days_old_int = int(days_old)
+            delete_query += " AND timestamp < datetime('now', ?)"
+            delete_params.append(f'-{days_old_int} days')
+            details_for_log.append(f'Mais antigos que {days_old_int} dias')
+        
         if action_type:
             delete_query += " AND action LIKE ?"
             delete_params.append(f'%{action_type}%')
             details_for_log.append(f'Ação: {action_type}')
 
-        if not days_old and not action_type: # Se nenhum filtro for aplicado, limpar todos
-            flash('Por favor, selecione um filtro para limpar os logs.', 'warning')
-            log_action(admin_user_id, 'Tentativa de Limpar Logs sem Filtro', 'Nenhum filtro de limpeza fornecido')
+        if not days_old and not action_type:
+            flash('Por favor, selecione uma opção de limpeza por data ou insira um tipo de ação.', 'warning')
+            log_action(admin_user_id, 'Tentativa de Limpar Logs sem Filtro Principal', 'Nenhum critério de limpeza válido fornecido')
             return redirect(url_for('view_logs'))
-
 
         cursor.execute(delete_query, delete_params)
         conn.commit()
         
         rows_deleted = cursor.rowcount
         flash(f'Foram removidos {rows_deleted} logs com sucesso!', 'success')
-        log_action(admin_user_id, 'Logs Limpos', f'Removidos {rows_deleted} logs. Filtros: {"; ".join(details_for_log) if details_for_log else "Todos"}')
+        
+        log_action(admin_user_id, 'Logs Limpos', f'Removidos {rows_deleted} logs. Critérios: {"; ".join(details_for_log) if details_for_log else "Nenhum específico"}')
 
     except Exception as e:
         flash(f'Ocorreu um erro ao limpar os logs: {e}', 'danger')
-        log_action(admin_user_id, 'Erro ao Limpar Logs', f'Erro: {e}')
+        log_action(admin_user_id, 'Erro ao Limpar Logs', f'Erro: {e}. Filtros aplicados: {json.dumps(request.form.to_dict())}')
     finally:
         conn.close()
 
@@ -1085,22 +1129,19 @@ def export_logs():
     conn = get_db_connection()
     logs_data = []
     try:
-        # Recupera todos os logs
         logs = conn.execute('SELECT id, user_id, action, timestamp, details FROM logs ORDER BY timestamp DESC').fetchall()
         for log in logs:
-            logs_data.append(dict(log)) # Converte Row para dicionário para JSON
+            logs_data.append(dict(log))
 
-        # Cria um arquivo JSON temporário
         json_file_path = tempfile.NamedTemporaryFile(delete=False, suffix='.json', mode='w', encoding='utf-8').name
         with open(json_file_path, 'w', encoding='utf-8') as f:
-            json.dump(logs_data, f, indent=4, ensure_ascii=False) # ensure_ascii=False para caracteres especiais
+            json.dump(logs_data, f, indent=4, ensure_ascii=False)
 
-        # Compacta o arquivo JSON em um ZIP
         zip_file_path = tempfile.NamedTemporaryFile(delete=False, suffix='.zip').name
         with zipfile.ZipFile(zip_file_path, 'w', zipfile.ZIP_DEFLATED) as zf:
-            zf.write(json_file_path, os.path.basename(json_file_path)) # Adiciona o JSON ao ZIP
+            zf.write(json_file_path, os.path.basename(json_file_path))
 
-        os.remove(json_file_path) # Remove o arquivo JSON temporário após compactar
+        os.remove(json_file_path)
 
         log_action(admin_user_id, 'Logs Exportados', f'Logs exportados para {os.path.basename(zip_file_path)}')
         return send_file(zip_file_path, mimetype='application/zip',

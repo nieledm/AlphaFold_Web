@@ -1,0 +1,11 @@
+.log-details {
+    max-width: 400px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.log-details:hover {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+}

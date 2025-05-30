@@ -1,23 +1,9 @@
-{# templates/logs.html #}
-{% extends 'base.html' %} {# Ou 'base_usuarios.html' se preferir #}
+{% extends 'base.html' %}
 
 {% block css %}
-    {{ super() }} {# Mantém o CSS do base.html #}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/titulosUsuarios.css') }}"> {# Se usar o estilo de título #}
-    <style>
-        /* Estilos adicionais para a tabela de logs, se necessário */
-        .log-details {
-            max-width: 400px; /* Limita a largura da coluna de detalhes */
-            white-space: nowrap; /* Evita quebra de linha */
-            overflow: hidden; /* Esconde o excesso */
-            text-overflow: ellipsis; /* Adiciona "..." */
-        }
-        .log-details:hover {
-            white-space: normal; /* Quebra a linha ao passar o mouse */
-            overflow: visible; /* Torna o conteúdo visível */
-            text-overflow: unset; /* Remove "..." ao passar o mouse */
-        }
-    </style>
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/titulosUsuarios.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/logs.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -63,19 +49,28 @@
 
     <div class="d-flex justify-content-end gap-2 mb-4">
         <form method="POST" action="{{ url_for('clear_logs') }}" onsubmit="return confirm('Tem certeza que deseja limpar os logs? Esta ação é irreversível.');">
-            {# Você pode adicionar campos ocultos aqui para filtros de limpeza se desejar, como no clear_logs do Flask #}
             <div class="input-group">
                 <select name="days_old" class="form-select" title="Limpar logs mais antigos que...">
-                    <option value="">Limpar por data</option>
+                    <option value="">Selecione uma opção</option>
+                    <option value="dates">Indique as datas</option>
                     <option value="7">Últimos 7 dias</option>
                     <option value="30">Últimos 30 dias</option>
                     <option value="90">Últimos 90 dias</option>
                     <option value="365">Último ano</option>
+                    <option value="all">Tudo</option>
                 </select>
-                <input type="text" name="action_type" class="form-control" placeholder="Tipo de ação (opcional)">
+            </div>
+            <div id="date_range_inputs" style="display: none;" class="input-group mt-2">
+                <span class="input-group-text">De:</span>
+                <input type="date" name="clear_start_date" class="form-control">
+                <span class="input-group-text">Até:</span>
+                <input type="date" name="clear_end_date" class="form-control">
+            </div>
+            <div class="d-grid gap-2 mt-2">
                 <button type="submit" class="btn btn-danger">Limpar Logs</button>
             </div>
         </form>
+
         <form method="POST" action="{{ url_for('export_logs') }}">
             <button type="submit" class="btn btn-success">Exportar Logs (JSON)</button>
         </form>
@@ -109,4 +104,8 @@
         <p>Nenhum log encontrado com os filtros aplicados.</p>
         {% endif %}
     </div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/logs.js') }}"></script>
 {% endblock %}
