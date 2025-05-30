@@ -3,6 +3,8 @@
 
 {% block css %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/titulosUsuarios.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/table.css') }}">
+     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
 {% endblock %}
 
 {% block content %}
@@ -30,18 +32,23 @@
   </form>      
 
   <!-- Tabela de usuários -->
-  <div class="table-responsive">
-      <table class="table table-bordered table-hover">
-          <thead class="table-light">
-              <tr>
-                  <th>Nome</th>
-                  <th>Email</th>
-                  <th class="text-center">Ações</th>
-              </tr>
-          </thead>
-          <tbody>
-              {% block tabela_usuarios %}{% endblock %}
-          </tbody>
-      </table>
-  </div>
+    <div class="table-responsive rounded">
+        <table class="table table-hover table-striped table-bordered">
+            <thead class="table-light">
+                <tr>
+                    <th class="sortable {% if sort_field == 'name' %}sorted-{{ sort_order }}{% endif %}" data-sort="name">
+                        Nome
+                    </th>
+                    <th class="sortable {% if sort_field == 'email' %}sorted-{{ sort_order }}{% endif %}" data-sort="email">
+                        Email
+                    </th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% block tabela_usuarios %}{% endblock %}
+            </tbody>
+        </table>
+    </div>
 {% endblock %}
+

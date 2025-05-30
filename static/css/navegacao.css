@@ -96,21 +96,3 @@
     margin: 0 !important;
     vertical-align: middle !important;
 }
-
-/* Estilo ultra-específico para o ícone de logs */
-.logs-counter .logs-info-icon {
-    color: var(--bs-gray-600) !important; /* Usando variável do Bootstrap */
-    font-size: 0.9rem !important;
-    margin-right: 0.25rem !important;
-    vertical-align: baseline !important;
-    position: relative;
-    top: -1px;
-}
-
-/* Reset para outros ícones (proteção extra) */
-.bi-info-circle:not(.logs-info-icon) {
-    color: inherit !important;
-    font-size: inherit !important;
-    margin-right: inherit !important;
-    vertical-align: inherit !important;
-}

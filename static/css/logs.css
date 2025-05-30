@@ -10,42 +10,6 @@
     text-overflow: unset;
 }
 
-/* Estilos para a tabela de logs */
-.table-responsive {
-    border-radius: 0.5rem;
-    overflow: hidden;
-}
-
-.table th {
-    white-space: nowrap;
-    position: relative;
-    cursor: pointer;
-}
-
-.table th.sortable:hover {
-    background-color: rgba(0, 0, 0, 0.03);
-}
-
-.table th .bi-arrow-down-up {
-    opacity: 0.3;
-    font-size: 0.8rem;
-    margin-left: 0.3rem;
-}
-
-.table th:hover .bi-arrow-down-up {
-    opacity: 0.7;
-}
-
-.table th.sorted-asc .bi-arrow-down-up::before {
-    content: "\f148";
-    opacity: 1;
-}
-
-.table th.sorted-desc .bi-arrow-down-up::before {
-    content: "\f149";
-    opacity: 1;
-}
-
 /* Estilos para os detalhes dos logs */
 .log-details {
     max-width: 300px;
