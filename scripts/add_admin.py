@@ -13,9 +13,9 @@ if admin:
 else:
     # Insere um usuário admin
     cursor.execute("""
-        INSERT INTO users (name, email, password, is_admin)
-        VALUES (?, ?, ?, ?)
-    """, ("Administrador", "admin@admin.com", "admin", 1))
+        INSERT INTO users (name, email, password, is_admin, is_active)
+        VALUES (?, ?, ?, ?, ?)
+    """, ("Niele", "nieledm@gmail.com", "123", 1, 1))
 
     conn.commit()
     print("Usuário admin criado com sucesso!")

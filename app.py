@@ -4,6 +4,7 @@ import subprocess
 import json
 import re
 import sqlite3
+import shutil
 from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer
 from email.mime.text import MIMEText
@@ -15,6 +16,8 @@ import pytz
 import tempfile
 import zipfile
 
+from database import get_db_connection, init_db, DATABASE
+
 
 app = Flask(__name__)
 app.secret_key = '#!Alph@3!' 
@@ -22,7 +25,6 @@ app.secret_key = '#!Alph@3!'
 # ==============================================================
 # CONFIGURAÇÕES GLOBAIS
 # ==============================================================
-DATABASE = 'database.db'
 
 # Configurações AlphaFold
 ALPHAFOLD_INPUT_BASE = '/str1/projects/AI-DD/alphafold3/alphafold3_input'
@@ -38,29 +40,6 @@ serializer = URLSafeTimedSerializer(app.secret_key)
 # ==============================================================
 # FUNÇÕES DE BANCO DE DADOS
 # ==============================================================
-def init_db():
-    """Inicializa o banco de dados com as tabelas necessárias"""
-    if not os.path.exists(DATABASE):
-        with sqlite3.connect(DATABASE) as conn:
-            c = conn.cursor()
-            c.execute('''
-                CREATE TABLE users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    email TEXT UNIQUE NOT NULL,
-                    password TEXT NOT NULL,
-                    is_admin INTEGER DEFAULT 0,
-                    is_active INTEGER DEFAULT 0
-                )
-            ''')
-            conn.commit()
-
-def get_db_connection():
-    """Retorna uma conexão com o banco de dados"""
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
-    return conn
-
 def get_user_by_email(email):
     """Busca um usuário pelo e-mail"""
     with get_db_connection() as conn:
@@ -198,20 +177,29 @@ def login():
 
         user = get_user_by_email(email)
 
+        user_id_for_log = None
+        if user:
+            user_id_for_log = user['id']
+
         if user and user['password'] == password:
+            session['user_id'] = user['id']
             if user['is_active'] == 0:
                 flash('Seu cadastro ainda não foi aprovado.', 'warning')
+                log_action(session['user_id'], 'Usuário ainda não aprovado')
             elif user['is_active'] == 2:
                 flash('Sua conta foi inativada. Contate o administrador.', 'danger')
+                log_action(session['user_id'], 'Usuário com conta inativada')
             elif user['is_active'] == 1:
                 session['user_id'] = user['id']
                 session['user_name'] = user['name']
                 session['user_email'] = user['email']
                 session['is_admin'] = bool(user['is_admin'])
                 flash('Login bem-sucedido!', 'success')
+                log_action(session['user_id'], 'Login bem-sucedido')
                 return redirect(url_for('dashboard'))
         else:
             flash('Credenciais inválidas.', 'danger')
+            log_action(user_id_for_log, 'Tentativa de Login Falha', f'Credenciais inválidas para o email: {email}')
 
     return render_template('login.html')
 
@@ -228,7 +216,7 @@ def register():
     if request.method == 'POST':
         name = request.form['name']
         email = request.form['email']
-        password = request.form['password'] 
+        password = request.form['password']
 
         if get_user_by_email(email):
             flash('E-mail já cadastrado.', 'danger')
@@ -237,8 +225,8 @@ def register():
         user_data = {'name': name, 'email': email, 'password': password}
         token = serializer.dumps(user_data, salt='email-verification')
         send_verification_email(name, email, token)
-
         flash('Verifique seu e-mail para confirmar o cadastro.', 'info')
+        log_action(None, 'Novo usuário registrado', f"Email: {email}")        
         return redirect(url_for('aviso', aviso_id=1))
 
     return render_template('register.html')
@@ -246,9 +234,11 @@ def register():
 @app.route('/confirm/<token>')
 def confirm_email(token):
     """Rota para confirmar e-mail do usuário"""
+    email_for_log = "Desconhecido"
     try:
         user_data = serializer.loads(token, salt='email-verification', max_age=3600)
         name, email, password = user_data['name'], user_data['email'], user_data['password']
+        email_for_log = email
 
         with get_db_connection() as conn:
             c = conn.cursor()
@@ -259,7 +249,7 @@ def confirm_email(token):
             c.execute('INSERT INTO users (name, email, password, is_active) VALUES (?, ?, ?, ?)',
                       (name, email, password, 0))
             conn.commit()
-
+        log_action(None, f'Email {email} verificado com sucesso')
         send_admin_notification(name, email)
         flash('E-mail confirmado com sucesso! Aguardando aprovação do administrador.', 'success')
         return redirect(url_for('aviso', aviso_id=2))
@@ -267,6 +257,7 @@ def confirm_email(token):
     except Exception as e:
         flash('O link de confirmação é inválido ou expirou.', 'danger')
         print('Erro na confirmação:', e)
+        log_action(None, f'Falha na confirmação do eail {email_for_log}')
         return redirect(url_for('register'))
 
 # ==============================================================
@@ -383,80 +374,174 @@ def usuarios_desativados():
 @app.route('/admin/aprovar/<int:user_id>', methods=['POST'])
 def aprovar_usuario(user_id):
     """Aprova um usuário pendente"""
+    admin_user_id = session.get('user_id')
     if not session.get('is_admin'):
         flash('Acesso não autorizado.', 'danger')
+        log_action(admin_user_id, 'Tentativa de acesso não autorizado', f'Rota: aprovar_usuario para ID {user_id}')
         return redirect(url_for('dashboard'))
 
-    with get_db_connection() as conn:
-        c = conn.cursor()
-        c.execute('SELECT name, email FROM users WHERE id = ?', (user_id,))
-        user = c.fetchone()
+    try:
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute('SELECT name, email, is_active FROM users WHERE id = ?', (user_id,)) # Incluindo is_active para verificação
+            user_to_approve = c.fetchone() # Renomeado para clareza
 
-        if user:
-            c.execute('UPDATE users SET is_active = 1 WHERE id = ?', (user_id,))
-            conn.commit()
-            send_activation_email(user['email'], user['name'])
-            flash('Usuário ativado com sucesso!', 'success')
-        else:
-            flash('Usuário não encontrado!', 'error')
+            if user_to_approve:
+                if user_to_approve['is_active'] == 1:
+                    flash(f"Usuário {user_to_approve['name']} já está ativo.", 'info')
+                    log_action(admin_user_id, 'Tentativa de aprovação de usuário já ativo', f'ID: {user_id}, Nome: {user_to_approve["name"]}, Email: {user_to_approve["email"]}')
+                    return redirect(url_for('usuarios_ativos'))
+
+                c.execute('UPDATE users SET is_active = 1 WHERE id = ?', (user_id,))
+                conn.commit()
+                send_activation_email(user_to_approve['email'], user_to_approve['name'])
+                flash(f'Usuário {user_to_approve["name"]} ativado com sucesso!', 'success')
+                log_action(admin_user_id, 'Usuário Aprovado', f'ID: {user_id}, Nome: {user_to_approve["name"]}, Email: {user_to_approve["email"]}')
+            else:
+                flash('Usuário não encontrado!', 'error')
+                log_action(admin_user_id, 'Tentativa de aprovação de usuário inexistente', f'ID do usuário tentado: {user_id}')
+
+    except Exception as e:
+        flash(f'Ocorreu um erro ao aprovar o usuário: {e}', 'danger')
+        log_action(admin_user_id, 'Erro ao aprovar usuário', f'ID do usuário: {user_id}. Erro: {e}')
 
     return redirect(url_for('usuarios_ativos'))
 
 @app.route('/admin/inativar/<int:user_id>', methods=['POST'])
 def inativar_usuario(user_id):
     """Inativa um usuário"""
+    admin_user_id = session.get('user_id')
     if not session.get('is_admin'):
         flash('Acesso não autorizado.', 'danger')
+        log_action(admin_user_id, 'Tentativa de acesso não autorizado', f'Rota: inativar_usuario para ID {user_id}')
         return redirect(url_for('dashboard'))
 
-    with get_db_connection() as conn:
-        c = conn.cursor()
-        c.execute('UPDATE users SET is_active = 2 WHERE id = ?', (user_id,))
-        conn.commit()
-    flash('Usuário desativado com sucesso!', 'warning')
-    return redirect(url_for('usuarios_desativados'))
-
-@app.route('/usuarios/<int:user_id>/excluir', methods=['POST'])
-def excluir_usuario(user_id):
-    """Exclui um usuário pendente"""
-    if not session.get('is_admin'):
-        flash('Acesso não autorizado.', 'danger')
-        return redirect(url_for('dashboard'))
-
+    user_to_inactivate = None
     try:
         with get_db_connection() as conn:
             c = conn.cursor()
-            c.execute('DELETE FROM users WHERE id = ?', (user_id,))
-            conn.commit()
-            flash('Usuário excluído com sucesso!' if c.rowcount > 0 else 'Usuário não encontrado.', 
-                  'success' if c.rowcount > 0 else 'warning')
-    except sqlite3.IntegrityError:
-        flash('Erro de integridade ao excluir usuário.', 'danger')
+            c.execute('SELECT name, email, is_active FROM users WHERE id = ?', (user_id,))
+            user_to_inactivate = c.fetchone()
+
+            if user_to_inactivate:
+                if user_to_inactivate['is_active'] == 2:
+                    flash(f"Usuário {user_to_inactivate['name']} já está inativado.", 'info')
+                    log_action(admin_user_id, 'Tentativa de inativar usuário já inativado', f'ID: {user_id}, Nome: {user_to_inactivate["name"]}, Email: {user_to_inactivate["email"]}')
+                    return redirect(url_for('usuarios_desativados'))
+                
+                c.execute('UPDATE users SET is_active = 2 WHERE id = ?', (user_id,))
+                conn.commit()
+                flash(f'Usuário {user_to_inactivate["name"]} desativado com sucesso!', 'warning')
+                
+                log_action(admin_user_id, 'Usuário Desativado', f'ID: {user_id}, Nome: {user_to_inactivate["name"]}, Email: {user_to_inactivate["email"]}')
+            else:
+                flash('Usuário não encontrado!', 'error')
+                log_action(admin_user_id, 'Tentativa de inativação de usuário inexistente', f'ID do usuário tentado: {user_id}')
+
+    except Exception as e:
+        flash(f'Ocorreu um erro ao inativar o usuário: {e}', 'danger')
+        log_action(admin_user_id, 'Erro ao inativar usuário', f'ID do usuário: {user_id}. Erro: {e}')
+
+    return redirect(url_for('usuarios_desativados'))
+
+
+@app.route('/usuarios/<int:user_id>/excluir', methods=['POST'])
+def excluir_usuario(user_id):
+    """Exclui um usuário (pendente, ativo, ou desativado) e seus dados associados."""
+    admin_user_id = session.get('user_id')
+    if not session.get('is_admin'):
+        flash('Acesso não autorizado.', 'danger')
+        log_action(admin_user_id, 'Tentativa de acesso não autorizado', f'Rota: excluir_usuario para ID {user_id}')
+        return redirect(url_for('dashboard'))
+
+    user_to_delete = None
+    try:
+        with get_db_connection() as conn:
+            c = conn.cursor()
+
+            c.execute('SELECT name, email, is_active FROM users WHERE id = ?', (user_id,))
+            user_to_delete = c.fetchone()
+
+            if user_to_delete:
+                if admin_user_id == user_id:
+                    flash('Você não pode excluir sua própria conta.', 'danger')
+                    log_action(admin_user_id, 'Tentativa de auto-exclusão negada', f'ID: {user_id}, Nome: {user_to_delete["name"]}')
+                    return redirect(url_for('usuarios_ativos')) # ou onde for mais apropriado
+
+                c.execute('DELETE FROM uploads WHERE user_id = ?', (user_id,))
+                c.execute('DELETE FROM logs WHERE user_id = ?', (user_id,))
+                
+                c.execute('DELETE FROM users WHERE id = ?', (user_id,))
+                conn.commit()
+
+                if c.rowcount > 0:
+                    flash('Usuário excluído com sucesso!', 'success')
+                    log_action(admin_user_id, 'Usuário Excluído', f'ID: {user_id}, Nome: {user_to_delete["name"]}, Email: {user_to_delete["email"]}')
+
+                    user_folder_name = user_to_delete['name']
+                    input_user_dir = os.path.join(ALPHAFOLD_INPUT_BASE, user_folder_name)
+                    output_user_dir = os.path.join(ALPHAFOLD_OUTPUT_BASE, user_folder_name)
+                    
+                    if os.path.exists(input_user_dir):
+                        shutil.rmtree(input_user_dir)
+                        log_action(admin_user_id, 'Arquivos de Input do Usuário Excluídos', f'Caminho: {input_user_dir}')
+                    if os.path.exists(output_user_dir):
+                        shutil.rmtree(output_user_dir)
+                        log_action(admin_user_id, 'Arquivos de Output do Usuário Excluídos', f'Caminho: {output_user_dir}')
+
+                else:
+                    flash('Usuário não encontrado para exclusão.', 'warning')
+                    log_action(admin_user_id, 'Tentativa de exclusão de usuário inexistente', f'ID do usuário tentado: {user_id}')
+            else:
+                flash('Usuário não encontrado para exclusão.', 'warning')
+                log_action(admin_user_id, 'Tentativa de exclusão de usuário inexistente (pré-verificação)', f'ID do usuário tentado: {user_id}')
+
+    except Exception as e: # Captura sqlite3.IntegrityError e outros erros
+        flash(f'Ocorreu um erro ao excluir o usuário: {e}', 'danger')
+        log_action(admin_user_id, 'Erro ao excluir usuário', f'ID do usuário: {user_id}. Erro: {e}')
 
     return redirect(url_for('usuarios_pendentes'))
 
 @app.route('/usuarios/<int:user_id>/admin', methods=['POST'])
 def toggle_admin(user_id):
-    """Alterna status de administrador"""
+    """Alterna status de administrador de um usuário."""
+    admin_user_id = session.get('user_id')
+
     if not session.get('is_admin'):
         flash('Acesso não autorizado.', 'danger')
+        log_action(admin_user_id, 'Tentativa de acesso não autorizado', f'Rota: toggle_admin para ID {user_id}')
         return redirect(url_for('dashboard'))
 
-    with get_db_connection() as conn:
-        c = conn.cursor()
-        c.execute('SELECT is_admin FROM users WHERE id = ?', (user_id,))
-        result = c.fetchone()
+    user_to_toggle = None
+    try:
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            
+            c.execute('SELECT id, name, email, is_admin FROM users WHERE id = ?', (user_id,))
+            user_to_toggle = c.fetchone()
 
-        if result:
-            new_status = 0 if result['is_admin'] == 1 else 1
-            c.execute('UPDATE users SET is_admin = ? WHERE id = ?', (new_status, user_id))
-            conn.commit()
-            flash('Usuário agora é um administrador.' if new_status else 'Privilégios de administrador removidos.', 
-                  'success' if new_status else 'info')
-        else:
-            flash('Usuário não encontrado.', 'danger')
+            if user_to_toggle:
+                current_status = user_to_toggle['is_admin']
+                new_status = 0 if current_status == 1 else 1
+                
+                c.execute('UPDATE users SET is_admin = ? WHERE id = ?', (new_status, user_id))
+                conn.commit()
 
-    return redirect(url_for('usuarios_ativos')) 
+                if new_status == 1:
+                    flash(f'Usuário {user_to_toggle["name"]} agora é um administrador.', 'success')
+                    log_action(admin_user_id, 'Privilégios de Administrador Concedidos', f'ID: {user_id}, Nome: {user_to_toggle["name"]}, Email: {user_to_toggle["email"]}')
+                else:
+                    flash(f'Privilégios de administrador de {user_to_toggle["name"]} removidos.', 'info')
+                    log_action(admin_user_id, 'Privilégios de Administrador Removidos', f'ID: {user_id}, Nome: {user_to_toggle["name"]}, Email: {user_to_toggle["email"]}')
+            else:
+                flash('Usuário não encontrado.', 'danger')
+                log_action(admin_user_id, 'Tentativa de toggle admin em usuário inexistente', f'ID do usuário tentado: {user_id}')
+
+    except Exception as e:
+        flash(f'Ocorreu um erro ao alternar o status de administrador: {e}', 'danger')
+        log_action(admin_user_id, 'Erro ao alternar status de administrador', f'ID do usuário: {user_id}. Erro: {e}')
+
+    return redirect(url_for('usuarios_ativos'))
 
 # ==============================================================
 # ROTAS DO ALPHAFOLD (UPLOAD, PROCESSAMENTO E DOWNLOAD)
@@ -620,10 +705,7 @@ def upload_file():
         Thread(target=run_alphafold_in_background, args=(
             command, user_name, user_email, base_name, user_id
         )).start()
-        
-        dict(session)
-
-
+                
         flash("Arquivo enviado. Você será notificado quando o processamento terminar.", 'info')
         return redirect(url_for('dashboard'))
 
@@ -682,6 +764,152 @@ def download_result(base_name):
     return send_file(temp_zip.name, mimetype='application/zip',
                      as_attachment=True, download_name=f"{base_name}_result.zip")
 
+# ==============================================================
+# COMPLETAR TRABALHO FABRÍCIO
+# ==============================================================
+
+@app.route('/sobre')
+def sobre():
+    # Dados do projeto e desenvolvedores
+    project_info = {
+        "tema": "Previsão de Estruturas de Proteínas com AlphaFold",
+        "objetivo": "Aplicação web em Python para gerenciar e executar previsões de estruturas de proteínas utilizando o AlphaFold, permitindo o upload de dados de entrada, acompanhamento do processamento e download dos resultados.",
+        "desenvolvedores": [
+            {"nome": "Bruno Celso Fonseca", "RA": "2840482223016"},
+            {"nome": "Gustavo Zitei Vicente", "RA": "2840482223035"},
+            {"nome": "Niele Dias Mendes", "RA": "2840482123046"}
+        ]
+    }
+    return render_template('sobre.html', project_info=project_info, active_page='sobre')
+
+def log_action(user_id, action, details=None):
+    """Registra uma ação no banco de dados de logs."""
+    conn = get_db_connection()
+    tz = pytz.timezone('America/Sao_Paulo')
+    now = datetime.now(tz)
+    timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
+    try:
+        conn.execute('INSERT INTO logs (user_id, action, timestamp, details) VALUES (?, ?, ?, ?)',
+                     (user_id, action, timestamp, details))
+        conn.commit()
+    except Exception as e:
+        print(f"Erro ao registrar log: {e}")
+    finally:
+        conn.close()
+
+@app.route('/admin/export_data')
+def export_data():
+    if not session.get('is_admin'):
+        flash('Acesso não autorizado.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    try:
+        conn = get_db_connection()
+        data_to_export = {}
+
+        # Exportar users
+        users = conn.execute('SELECT id, name, email, is_admin, is_active FROM users').fetchall()
+        data_to_export['users'] = [dict(row) for row in users]
+
+        # Exportar uploads
+        uploads = conn.execute('SELECT id, user_id, file_name, base_name, status, created_at FROM uploads').fetchall()
+        data_to_export['uploads'] = [dict(row) for row in uploads]
+
+        # Exportar logs
+        logs = conn.execute('SELECT id, user_id, action, timestamp, details FROM logs').fetchall()
+        data_to_export['logs'] = [dict(row) for row in logs]
+
+        conn.close()
+
+        # Salva o JSON em um arquivo temporário
+        json_file_path = tempfile.NamedTemporaryFile(delete=False, suffix='.json').name
+        with open(json_file_path, 'w') as f:
+            json.dump(data_to_export, f, indent=4)
+
+        # Compacta o arquivo JSON em um ZIP
+        zip_file_path = tempfile.NamedTemporaryFile(delete=False, suffix='.zip').name
+        with zipfile.ZipFile(zip_file_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+            zf.write(json_file_path, os.path.basename(json_file_path))
+
+        os.remove(json_file_path) # Remove o arquivo JSON temporário
+
+        return send_file(zip_file_path,
+                         mimetype='application/zip',
+                         as_attachment=True,
+                         download_name='all_application_data.zip')
+
+    except Exception as e:
+        flash(f'Erro ao exportar dados: {e}', 'danger')
+        return redirect(url_for('dashboard'))
+
+# @app.route('/admin/import_data', methods=['GET', 'POST'])
+# def import_data():
+#     if not session.get('is_admin'):
+#         flash('Acesso não autorizado.', 'danger')
+#         return redirect(url_for('dashboard'))
+
+#     if request.method == 'POST':
+#         data_url = request.form['data_url']
+#         if not data_url:
+#             flash('Por favor, forneça um URL para importação.', 'danger')
+#             return redirect(url_for('import_data'))
+
+#         try:
+#             response = requests.get(data_url)
+#             response.raise_for_status() # Lança exceção para erros HTTP
+#             imported_data = response.json()
+
+#             conn = get_db_connection()
+#             c = conn.cursor()
+
+#             # Exemplo de como importar: Você precisará adaptar a lógica
+#             # com base no formato do seu JSON de exportação e sua estratégia de importação
+#             if 'users' in imported_data:
+#                 for user_data in imported_data['users']:
+#                     # Exemplo: Inserir ou ignorar se já existe pelo email
+#                     existing_user = c.execute('SELECT id FROM users WHERE email = ?', (user_data['email'],)).fetchone()
+#                     if not existing_user:
+#                         c.execute('''
+#                             INSERT INTO users (name, email, password, is_admin, is_active)
+#                             VALUES (?, ?, ?, ?, ?)
+#                         ''', (user_data['name'], user_data['email'], user_data['password'],
+#                               user_data.get('is_admin', 0), user_data.get('is_active', 0)))
+#                     # else: # Opcional: atualizar usuário existente
+#                     #     c.execute('UPDATE users SET name=?, password=? WHERE email=?', ...)
+
+#             if 'uploads' in imported_data:
+#                 for upload_data in imported_data['uploads']:
+#                     # Considerar como lidar com user_id ao importar se for de outro ambiente
+#                     c.execute('''
+#                         INSERT INTO uploads (user_id, file_name, base_name, status, created_at)
+#                         VALUES (?, ?, ?, ?, ?)
+#                     ''', (upload_data['user_id'], upload_data['file_name'], upload_data['base_name'],
+#                           upload_data['status'], upload_data['created_at']))
+
+#             if 'logs' in imported_data:
+#                 for log_data in imported_data['logs']:
+#                     c.execute('''
+#                         INSERT INTO logs (user_id, action, timestamp, details)
+#                         VALUES (?, ?, ?, ?)
+#                     ''', (log_data.get('user_id'), log_data['action'], log_data['timestamp'], log_data.get('details')))
+
+
+#             conn.commit()
+#             conn.close()
+
+#             flash('Dados importados com sucesso!', 'success')
+#             # Apresentar os dados importados em uma UI: Redirecionar para uma página relevante
+#             return redirect(url_for('usuarios_ativos')) # ou uma nova rota /admin/imported_summary
+
+#         except requests.exceptions.RequestException as e:
+#             flash(f'Erro ao baixar dados do URL: {e}', 'danger')
+#         except json.JSONDecodeError:
+#             flash('Erro: O conteúdo do URL não é um JSON válido.', 'danger')
+#         except Exception as e:
+#             flash(f'Erro ao processar e armazenar dados: {e}', 'danger')
+
+#     return render_template('import_data_form.html') # <------ criar template
+
 
 # ==============================================================
 # FUNÇÕES DE CONTEXTO E INICIALIZAÇÃO
@@ -702,3 +930,4 @@ def check_status():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=5000)
+

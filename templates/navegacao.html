@@ -19,8 +19,7 @@
                </a>
            </li>
        </ul>
-   </div>
-
+   </div>  
     <!-- Dropdown 2: Usuários -->
     {% if session.get('is_admin') %}
         <div class="dropdown">
@@ -49,4 +48,8 @@
             </ul>
         </div>
     {% endif %}
+    <a href="{{ url_for('sobre') }}" class="btn btn-icon btn-nav {% if active_page == 'sobre' %}active{% endif %}" title="Sobre">
+        i
+        <i class="bi bi-info-circle"></i>
+   </a>
 </div>

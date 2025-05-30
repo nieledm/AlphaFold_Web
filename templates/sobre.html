@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-0">
+    <h1 class="mb-4">Sobre o Projeto</h1>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            Tema do Projeto
+        </div>
+        <div class="card-body">
+            <p>{{ project_info.tema }}</p>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            Objetivo
+        </div>
+        <div class="card-body">
+            <p>{{ project_info.objetivo }}</p>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            Desenvolvedor(es)
+        </div>
+        <div class="card-body">
+            <ul class="list-group list-group-flush">
+                {% for dev in project_info.desenvolvedores %}
+                    <li class="list-group-item">{{ dev.nome }} (RA: {{ dev.RA }})</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

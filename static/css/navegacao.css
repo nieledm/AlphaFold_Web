@@ -73,3 +73,18 @@
     margin-top: -80px;
     margin-left: 150px;
 }
+
+/* Botão sobre */
+.btn-icon {
+    width: 25px;
+    height: 25px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50% !important; /* Deixa redondo */
+    font-family: "Times New Roman", serif; /* Fonte limpa */
+    font-size: 1rem;
+    font-style: italic;
+    margin-top: 10px;
+}
