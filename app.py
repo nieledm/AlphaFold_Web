@@ -16,7 +16,7 @@ from datetime import datetime
 import pytz
 import tempfile
 import zipfile
-
+import paramiko
 from database import get_db_connection, init_db, DATABASE
 
 
@@ -26,6 +26,11 @@ app.secret_key = '#!Alph@3!'
 # ==============================================================
 # CONFIGURAÇÕES GLOBAIS
 # ==============================================================
+
+# Configuração conexão Horizon
+ALPHAFOLD_SSH_HOST = 'alphaFold.web@143.106.4.186'
+ALPHAFOLD_SSH_PORT = 2323
+ALPHAFOLD_SSH_USER = 'alphaFold.web'
 
 # Configurações AlphaFold
 ALPHAFOLD_INPUT_BASE = '/str1/projects/AI-DD/alphafold3/alphafold3_input'
@@ -719,6 +724,13 @@ def upload_file():
         filename = file.filename
         base_name = filename.rsplit('.', 1)[0]
 
+        # Conexão SSH
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(ALPHAFOLD_SSH_HOST, port=ALPHAFOLD_SSH_PORT, username=ALPHAFOLD_SSH_USER)
+
+        sftp = ssh.open_sftp()
+
         user_name = session['user_name']
         user_email = session['user_email']
         user_id = session['user_id']
@@ -728,12 +740,16 @@ def upload_file():
         output_subdir = os.path.join(output_user_dir, base_name)
 
         # Cria diretórios para input e output caso não existam
-        os.makedirs(input_subdir, exist_ok=True)
-        os.makedirs(output_subdir, exist_ok=True)
+        mkdir_command = f"mkdir -p '{input_subdir}' '{output_user_dir}' '{output_subdir}'"
+        ssh.exec_command(mkdir_command)
 
         # Salva arquivo
         input_file_path = os.path.join(input_subdir, filename)
-        file.save(input_file_path)
+        # file.save(input_file_path)
+        sftp.putfo(file.stream, input_file_path)
+
+        sftp.close()
+        ssh.close()
 
         # Salva no banco
         conn = get_db_connection()
@@ -772,35 +788,63 @@ def upload_file():
 def run_alphafold_in_background(command, user_name, user_email, base_name, user_id):
 
     log_action(user_id, 'Executando AlphaFold em background', f'Projeto: {base_name}')
+
+    ssh_host = ALPHAFOLD_SSH_HOST
+    ssh_port = ALPHAFOLD_SSH_PORT
+    ssh_user_name = ALPHAFOLD_SSH_USER
     
     output_user_dir = os.path.join(ALPHAFOLD_OUTPUT_BASE, user_name)
     output_subdir = os.path.join(output_user_dir, base_name)
+    input_subdir = os.path.join(ALPHAFOLD_INPUT_BASE, base_name)
     
-    os.makedirs(output_user_dir, exist_ok=True)
-    os.makedirs(output_subdir, exist_ok=True)
+    # criar diretorio remoto
+    mkdir_command = f"mkdir -p '{input_subdir}' '{output_user_dir}' '{input_subdir}'"
+    ssh.exec_command(mkdir_command)
 
-    process_result = None     
-    
-    subprocess.run(command, shell=True)
-    process_result = subprocess.run(command, shell=True, capture_output=True, text=True, check=False)
-    result_file = os.path.join(output_subdir, 'alphafold_prediction', 'alphafold_prediction_model.cif')
+    # os.makedirs(output_user_dir, exist_ok=True)
+    # os.makedirs(output_subdir, exist_ok=True)
 
-    conn = get_db_connection()
-    if os.path.exists(result_file):
-        # Atualiza status para COMPLETO
-        conn.execute("UPDATE uploads SET status = ? WHERE base_name = ?", ('COMPLETO', base_name))
-        log_action(user_id, 'Processamento AlphaFold Concluído', f'Projeto: {base_name}. Arquivo de saída: {result_file}')
-        send_processing_complete_email(user_name, user_email, base_name, user_id)
-    else:
-        conn.execute("UPDATE uploads SET status = ? WHERE base_name = ?", ('ERRO', base_name))
-        stdout_info = process_result.stdout if process_result else "N/A"
-        stderr_info = process_result.stderr if process_result else "N/A"
-        log_details = f"Projeto: {base_name}. Arquivo de resultado não gerado. " \
-                        f"stdout: {stdout_info}, stderr: {stderr_info}"
-        log_action(user_id, 'Processamento AlphaFold com ERRO', log_details)
-        send_email(user_email, "Erro no processamento do AlphaFold", f"<p>Olá {user_name},</p><p>Ocorreu um erro e o arquivo de resultado não foi gerado.</p>")
-    conn.commit()
-    conn.close()
+    # Para execução do comando via SSH e manter controle
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    try:
+        # Conecta via SSH
+        ssh.connect(hostname=ssh_host, port=ssh_port, username=ssh_user_name)
+
+        stdin, stdout, stderr = ssh.exec_command(command)
+
+        # Monitorar saída em tempo real
+        for line in iter(stdout.readline, ""):
+            log_action(user_id, 'AlphaFold output', line.strip())
+
+        # Monitorar erros (stderr)
+        for line in iter(stderr.readline, ""):
+            log_action(user_id, 'AlphaFold error', line.strip())
+
+        exit_status = stdout.channel.recv_exit_status()
+
+        result_file = os.path.join(output_subdir, 'alphafold_prediction', 'alphafold_prediction_model.cif')
+
+        conn = get_db_connection()
+        if os.path.exists(result_file) and exit_status == 0:
+            conn.execute("UPDATE uploads SET status = ? WHERE base_name = ?", ('COMPLETO', base_name))
+            log_action(user_id, 'Processamento AlphaFold Concluído', f'Projeto: {base_name}. Arquivo de saída: {result_file}')
+            send_processing_complete_email(user_name, user_email, base_name, user_id)
+        else:
+            conn.execute("UPDATE uploads SET status = ? WHERE base_name = ?", ('ERRO', base_name))
+            log_details = f"Projeto: {base_name}. Arquivo de resultado não gerado ou erro na execução. Exit status: {exit_status}"
+            log_action(user_id, 'Processamento AlphaFold com ERRO', log_details)
+            send_email(user_email, "Erro no processamento do AlphaFold", f"<p>Olá {user_name},</p><p>Ocorreu um erro e o arquivo de resultado não foi gerado.</p>")
+        conn.commit()
+        conn.close()
+
+    except Exception as e:
+        log_action(user_id, 'Erro na execução AlphaFold SSH', str(e))
+        send_email(user_email, "Erro na execução AlphaFold", f"<p>Olá {user_name},</p><p>Ocorreu um erro inesperado: {e}</p>")
+
+    finally:
+        ssh.close()
 
 @app.route('/download/<base_name>')
 def download_result(base_name):
@@ -811,6 +855,16 @@ def download_result(base_name):
         flash('Usuário não encontrado. Faça login novamente.', 'warning')
         log_action(None, 'Tentativa de Download (Não Autenticado)', f'BaseName: {base_name}')
         return redirect(url_for('login'))
+    
+    ssh_host = ALPHAFOLD_SSH_HOST
+    ssh_port = ALPHAFOLD_SSH_PORT
+    ssh_user_name = ALPHAFOLD_SSH_USER
+    
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    ssh.connect(hostname=ssh_host, port=ssh_port, username=ssh_user_name)
+
     
     # Diretório específico do usuário
     output_user_dir = os.path.join(ALPHAFOLD_OUTPUT_BASE, user_name)
