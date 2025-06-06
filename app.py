@@ -28,7 +28,7 @@ app.secret_key = '#!Alph@3!'
 # ==============================================================
 
 # Configuração conexão Horizon
-ALPHAFOLD_SSH_HOST = 'alphaFold.web@143.106.4.186'
+ALPHAFOLD_SSH_HOST = '143.106.4.186'
 ALPHAFOLD_SSH_PORT = 2323
 ALPHAFOLD_SSH_USER = 'alphaFold.web'
 
