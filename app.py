@@ -30,7 +30,7 @@ app.secret_key = '#!Alph@3!'
 # Configuração conexão Horizon
 ALPHAFOLD_SSH_HOST = '143.106.4.186'
 ALPHAFOLD_SSH_PORT = 2323
-ALPHAFOLD_SSH_USER = 'alphaFold.web'
+ALPHAFOLD_SSH_USER = 'alphaFoldWeb'
 
 # Configurações AlphaFold
 ALPHAFOLD_INPUT_BASE = '/str1/projects/AI-DD/alphafold3/alphafold3_input'
