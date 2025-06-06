@@ -772,6 +772,7 @@ def upload_file():
             f"--gpus all alphafold3 "
             f"python run_alphafold.py "
             f"--json_path=/root/af_input/{filename} "
+            f"--input_dir={input_subdir} " 
             f"--output_dir=/root/af_output/{base_name}"
         )
 
