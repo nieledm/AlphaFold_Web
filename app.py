@@ -17,6 +17,7 @@ import pytz
 import tempfile
 import zipfile
 import paramiko
+import select
 from database import get_db_connection, init_db, DATABASE
 
 
@@ -767,6 +768,7 @@ def upload_file():
 
         # Monta comando e roda em background
         command = (
+            # f"docker run -it "
             f"docker run -it "
             f"--volume {input_subdir}:/root/af_input "
             f"--volume {output_user_dir}:/root/af_output "
@@ -818,8 +820,23 @@ def run_alphafold_in_background(command, user_name, user_email, base_name, user_
         log_action(user_id, 'Tentativa de Execução Remota Docker', f'Comando: {command[:100]}...')
 
         stdin, stdout, stderr = ssh.exec_command(command)
-
         log_action(user_id, 'Comando Docker Enviado ao Servidor AlphaFold', f'BaseName: {base_name}')
+
+        while not stdout.channel.exit_status_ready():
+            # Usar select para ler quando houver dados
+            rl, wl, xl = select.select([stdout.channel], [], [], 1.0)
+            if rl:
+                line = stdout.readline()
+                if line:
+                    log_action(user_id, 'AlphaFold output', line.strip())
+
+            rl_err, _, _ = select.select([stderr.channel], [], [], 1.0)
+            if rl_err:
+                err_line = stderr.readline()
+                if err_line:
+                    log_action(user_id, 'AlphaFold error', err_line.strip())
+
+        exit_status = stdout.channel.recv_exit_status()
 
         # Monitorar saída em tempo real
         for line in iter(stdout.readline, ""):
@@ -1111,7 +1128,7 @@ def view_logs():
             query += " AND timestamp <= ?"
             params.append(end_date + " 23:59:59")
 
-        query += " ORDER BY timestamp DESC"
+        query += " ORDER BY timestamp DESC, l.id DESC"
         logs = conn.execute(query, params).fetchall()
         
     except Exception as e:
