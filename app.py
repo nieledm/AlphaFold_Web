@@ -101,9 +101,12 @@ def send_email(to_email, subject, html_content):
         with SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(EMAIL_SENDER, EMAIL_PASSWORD)
             server.sendmail(EMAIL_SENDER, to_email, msg.as_string())
+            log_action('', 'Envio de email', 'Sucesso no envio')
+
         return True
     except Exception as e:
         print(f"Erro ao enviar e-mail: {e}")
+        log_action('', 'Envio de email', 'Erro no envio')
         return False
 
 def send_verification_email(name, email, token):
@@ -829,6 +832,7 @@ def run_alphafold_in_background(command, user_name, user_email, base_name, user_
         exit_status = stdout.channel.recv_exit_status()
 
         result_file = os.path.join(output_subdir, 'alphafold_prediction', 'alphafold_prediction_model.cif')
+        log_action(user_id, 'Exit status final', f"{exit_status}")
 
         conn = get_db_connection()
         if os.path.exists(result_file) and exit_status == 0:
@@ -845,8 +849,10 @@ def run_alphafold_in_background(command, user_name, user_email, base_name, user_
 
     except Exception as e:
         log_action(user_id, 'Erro na execução AlphaFold SSH', str(e))
-        send_email(user_email, "Erro na execução AlphaFold", f"<p>Olá {user_name},</p><p>Ocorreu um erro inesperado: {e}</p>")
-
+        try:
+            send_email(user_email, "Erro na execução AlphaFold", f"<p>Olá {user_name},</p><p>Ocorreu um erro inesperado: {e}</p>")
+        except Exception as email_error:
+            log_action(user_id, 'Erro ao enviar e-mail', str(email_error))
     finally:
         ssh.close()
 
