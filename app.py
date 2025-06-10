@@ -804,18 +804,15 @@ def run_alphafold_in_background(command, user_name, user_email, base_name, user_
     
     # criar diretorio remoto
     mkdir_command = f"mkdir -p '{input_subdir}' '{output_user_dir}' '{input_subdir}'"
-    ssh.exec_command(mkdir_command)
-
-    # os.makedirs(output_user_dir, exist_ok=True)
-    # os.makedirs(output_subdir, exist_ok=True)
-
-    # Para execução do comando via SSH e manter controle
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     try:
-        # Conecta via SSH
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(hostname=ssh_host, port=ssh_port, username=ssh_user_name)
+
+        # Criação dos diretórios remotos
+        ssh.exec_command(mkdir_command)
+        log_action(user_id, 'Diretórios criados no servidor remoto', f'{mkdir_command}')
 
         log_action(user_id, 'Tentativa de Execução Remota Docker', f'Comando: {command[:100]}...')
 
