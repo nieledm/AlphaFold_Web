@@ -772,7 +772,6 @@ def upload_file():
             f"--gpus all alphafold3 "
             f"python run_alphafold.py "
             f"--json_path=/root/af_input/{filename} "
-            f"--input_dir={input_subdir} " 
             f"--output_dir=/root/af_output/{base_name}"
         )
 
@@ -813,7 +812,11 @@ def run_alphafold_in_background(command, user_name, user_email, base_name, user_
         # Conecta via SSH
         ssh.connect(hostname=ssh_host, port=ssh_port, username=ssh_user_name)
 
+        log_action(user_id, 'Tentativa de Execução Remota Docker', f'Comando: {command[:100]}...')
+
         stdin, stdout, stderr = ssh.exec_command(command)
+
+        log_action(user_id, 'Comando Docker Enviado ao Servidor AlphaFold', f'BaseName: {base_name}')
 
         # Monitorar saída em tempo real
         for line in iter(stdout.readline, ""):
