@@ -769,14 +769,14 @@ def upload_file():
         # Monta comando e roda em background
         command = (
             # f"docker run -it "
-            f"docker run -it "
-            f"--volume {input_subdir}:/root/af_input "
-            f"--volume {output_user_dir}:/root/af_output "
-            f"--volume {ALPHAFOLD_PARAMS}:/root/models "
-            f"--volume {ALPHAFOLD_DB}:/root/public_databases "
-            f"--gpus all alphafold3 "
-            f"python run_alphafold.py "
-            f"--json_path=/root/af_input/{filename} "
+            f"docker run"
+            f"--volume {input_subdir}:/root/af_input"
+            f"--volume {output_user_dir}:/root/af_output"
+            f"--volume {ALPHAFOLD_PARAMS}:/root/models"
+            f"--volume {ALPHAFOLD_DB}:/root/public_databases"
+            f"--gpus all alphafold3"
+            f"python run_alphafold.py"
+            f"--json_path=/root/af_input/{filename}"
             f"--output_dir=/root/af_output/{base_name}"
         )
 
@@ -790,83 +790,62 @@ def upload_file():
 
     return 'Invalid file format'
 
-def run_alphafold_in_background(command, user_name, user_email, base_name, user_id):
+def run_alphafold_in_background(cmd, user_name, user_email, base_name, user_id):
+    log_action(user_id, 'Executando AlphaFold', base_name)
 
-    log_action(user_id, 'Executando AlphaFold em background', f'Projeto: {base_name}')
-
-    ssh_host = ALPHAFOLD_SSH_HOST
-    ssh_port = ALPHAFOLD_SSH_PORT
-    ssh_user_name = ALPHAFOLD_SSH_USER
-    
-    output_user_dir = os.path.join(ALPHAFOLD_OUTPUT_BASE, user_name)
-    output_subdir = os.path.join(output_user_dir, base_name)
-    input_subdir = os.path.join(ALPHAFOLD_INPUT_BASE, base_name)
-    
-    # criar diretorio remoto
-    mkdir_command = f"mkdir -p '{input_subdir}' '{output_user_dir}' '{input_subdir}'"
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     try:
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(hostname=ssh_host, port=ssh_port, username=ssh_user_name)
+        ssh.connect(ALPHAFOLD_SSH_HOST, port=ALPHAFOLD_SSH_PORT, username=ALPHAFOLD_SSH_USER)
 
-        # Criação dos diretórios remotos
-        ssh.exec_command(mkdir_command)
-        log_action(user_id, 'Diretórios criados no servidor remoto', f'{mkdir_command}')
+        mkdir = f"mkdir -p '{ALPHAFOLD_INPUT_BASE}/{user_name}' " \
+                f"'{ALPHAFOLD_OUTPUT_BASE}/{user_name}/{base_name}'"
+        ssh.exec_command(mkdir)
 
-        log_action(user_id, 'Tentativa de Execução Remota Docker', f'Comando: {command[:100]}...')
+        stdin, stdout, stderr = ssh.exec_command(cmd)
 
-        stdin, stdout, stderr = ssh.exec_command(command)
-        log_action(user_id, 'Comando Docker Enviado ao Servidor AlphaFold', f'BaseName: {base_name}')
-
+        # -------------- LOG EM TEMPO REAL --------------
         while not stdout.channel.exit_status_ready():
-            # Usar select para ler quando houver dados
-            rl, wl, xl = select.select([stdout.channel], [], [], 1.0)
+            rl, _, _ = select.select([stdout.channel], [], [], 1.0)
             if rl:
                 line = stdout.readline()
                 if line:
-                    log_action(user_id, 'AlphaFold output', line.strip())
+                    log_action(user_id, 'AlphaFold out', line.rstrip())
 
             rl_err, _, _ = select.select([stderr.channel], [], [], 1.0)
             if rl_err:
-                err_line = stderr.readline()
-                if err_line:
-                    log_action(user_id, 'AlphaFold error', err_line.strip())
+                err = stderr.readline()
+                if err:
+                    log_action(user_id, 'AlphaFold err', err.rstrip())
+        # -------------- FIM DO LOOP ---------------------
 
         exit_status = stdout.channel.recv_exit_status()
+        log_action(user_id, 'Exit status', exit_status)
 
-        # Monitorar saída em tempo real
-        for line in iter(stdout.readline, ""):
-            log_action(user_id, 'AlphaFold output', line.strip())
+        remote_cif = f"{ALPHAFOLD_OUTPUT_BASE}/{user_name}/{base_name}/" \
+                     f"alphafold_prediction/alphafold_prediction_model.cif"
+        stdin, stdout, _ = ssh.exec_command(f'test -f "{remote_cif}" && echo OK || echo NO')
+        result_exists = stdout.read().decode().strip() == 'OK'
 
-        # Monitorar erros (stderr)
-        for line in iter(stderr.readline, ""):
-            log_action(user_id, 'AlphaFold error', line.strip())
-
-        exit_status = stdout.channel.recv_exit_status()
-
-        result_file = os.path.join(output_subdir, 'alphafold_prediction', 'alphafold_prediction_model.cif')
-        log_action(user_id, 'Exit status final', f"{exit_status}")
-
-        conn = get_db_connection()
-        if os.path.exists(result_file) and exit_status == 0:
-            conn.execute("UPDATE uploads SET status = ? WHERE base_name = ?", ('COMPLETO', base_name))
-            log_action(user_id, 'Processamento AlphaFold Concluído', f'Projeto: {base_name}. Arquivo de saída: {result_file}')
-            send_processing_complete_email(user_name, user_email, base_name, user_id)
-        else:
-            conn.execute("UPDATE uploads SET status = ? WHERE base_name = ?", ('ERRO', base_name))
-            log_details = f"Projeto: {base_name}. Arquivo de resultado não gerado ou erro na execução. Exit status: {exit_status}"
-            log_action(user_id, 'Processamento AlphaFold com ERRO', log_details)
-            send_email(user_email, "Erro no processamento do AlphaFold", f"<p>Olá {user_name},</p><p>Ocorreu um erro e o arquivo de resultado não foi gerado.</p>")
-        conn.commit()
-        conn.close()
-
+        with get_db_connection() as conn:
+            if result_exists and exit_status == 0:
+                conn.execute("UPDATE uploads SET status='COMPLETO' WHERE base_name=?", (base_name,))
+                log_action(user_id, 'Processamento CONCLUÍDO', remote_cif)
+                send_processing_complete_email(user_name, user_email, base_name, user_id)
+            else:
+                conn.execute("UPDATE uploads SET status='ERRO' WHERE base_name=?", (base_name,))
+                log_action(user_id, 'Processamento ERRO',
+                           f'Exit={exit_status}, arquivo existe? {result_exists}')
+                send_email(user_email, "Erro no processamento do AlphaFold",
+                           f"<p>Olá {user_name},</p><p>Ocorreu um erro e o arquivo de resultado não foi gerado.</p>")
     except Exception as e:
-        log_action(user_id, 'Erro na execução AlphaFold SSH', str(e))
+        log_action(user_id, 'Falha run_alphafold', str(e))
         try:
-            send_email(user_email, "Erro na execução AlphaFold", f"<p>Olá {user_name},</p><p>Ocorreu um erro inesperado: {e}</p>")
-        except Exception as email_error:
-            log_action(user_id, 'Erro ao enviar e-mail', str(email_error))
+            send_email(user_email, "Erro na execução AlphaFold",
+                       f"<p>Olá {user_name},</p><p>Ocorreu um erro inesperado: {e}</p>")
+        except Exception as mail_err:
+            log_action(user_id, 'Erro ao enviar e-mail', str(mail_err))
     finally:
         ssh.close()
 
