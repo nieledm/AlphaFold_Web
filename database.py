@@ -60,7 +60,7 @@ def init_db():
     
 def get_db_connection():
     """Retorna uma conexão com o banco de dados"""
-    conn = sqlite3.connect(DATABASE, check_same_thread=False)
+    conn = sqlite3.connect(DATABASE, check_same_thread=False, timeout=10)
     conn.row_factory = sqlite3.Row
     return conn
 
