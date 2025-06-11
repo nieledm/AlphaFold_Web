@@ -807,27 +807,50 @@ def run_alphafold_in_background(cmd, user_name, user_email, base_name, user_id):
         stdin, stdout, stderr = ssh.exec_command(cmd)
 
         # -------------- LOG EM TEMPO REAL --------------
+        stdout_lines = []
+        stderr_lines = []
+
         while not stdout.channel.exit_status_ready():
-            rl, _, _ = select.select([stdout.channel], [], [], 1.0)
+            rl, wl, xl = select.select([stdout.channel], [], [], 1.0)
             if rl:
                 line = stdout.readline()
                 if line:
-                    log_action(user_id, 'AlphaFold out', line.rstrip())
+                    stdout_lines.append(line.strip())
 
             rl_err, _, _ = select.select([stderr.channel], [], [], 1.0)
             if rl_err:
-                err = stderr.readline()
-                if err:
-                    log_action(user_id, 'AlphaFold err', err.rstrip())
+                err_line = stderr.readline()
+                if err_line:
+                    stderr_lines.append(err_line.strip())
+
+        # Após o término, registra os logs em lote:
+        for line in stdout_lines:
+            log_action(user_id, 'AlphaFold output', line)
+        for line in stderr_lines:
+            log_action(user_id, 'AlphaFold error', line)
         # -------------- FIM DO LOOP ---------------------
 
         exit_status = stdout.channel.recv_exit_status()
-        log_action(user_id, 'Exit status', exit_status)
+        log_action(user_id, 'Exit status', str(exit_status))
 
         remote_cif = f"{ALPHAFOLD_OUTPUT_BASE}/{user_name}/{base_name}/" \
                      f"alphafold_prediction/alphafold_prediction_model.cif"
-        stdin, stdout, _ = ssh.exec_command(f'test -f "{remote_cif}" && echo OK || echo NO')
-        result_exists = stdout.read().decode().strip() == 'OK'
+        
+        check_cmd = f'test -f "{remote_cif}" && echo OK || echo NO'
+        # stdin, stdout, _ = ssh.exec_command(f'test -f "{remote_cif}" && echo OK || echo NO')
+        # result_exists = stdout.read().decode().strip() == 'OK'
+
+        # Verificar se arquivo de resultado foi gerado (espera até 60s)
+        wait_time = 0
+        result_exists = False
+        while wait_time < 60:
+            stdin, stdout, _ = ssh.exec_command(check_cmd)
+            result = stdout.read().decode().strip()
+            if result == "OK":
+                result_exists = True
+                break
+            time.sleep(5)
+            wait_time += 5
 
         with get_db_connection() as conn:
             if result_exists and exit_status == 0:
