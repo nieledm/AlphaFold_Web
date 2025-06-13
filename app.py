@@ -21,6 +21,7 @@ import paramiko
 import select
 import time
 import stat
+import requests
 from database import get_db_connection, init_db, DATABASE
 
 
@@ -835,30 +836,35 @@ def run_alphafold_in_background(cmd, user_name, user_email, base_name, user_id):
             exit_status = stdout.channel.recv_exit_status()
             log_action(user_id, 'Exit status', str(exit_status))
 
-            remote_cif = f"{ALPHAFOLD_OUTPUT_BASE}/{user_name}/{base_name}/" \
-                        f"alphafold_prediction/alphafold_prediction_model.cif"
+            remote_cif_path = f"{ALPHAFOLD_OUTPUT_BASE}/{user_name}/{base_name}/" \
+                              f"alphafold_prediction/alphafold_prediction_model.cif"
             
-            check_cmd = f'test -f "{remote_cif}" && echo OK || echo NO'
-            # stdin, stdout, _ = ssh.exec_command(f'test -f "{remote_cif}" && echo OK || echo NO')
-            # result_exists = stdout.read().decode().strip() == 'OK'
-
-            # Verificar se arquivo de resultado foi gerado (espera até 60s)
-            wait_time = 0
+            # ----------- VERIFICAÇÃO DO RESULTADO (.cif) -----------
             result_exists = False
-            while wait_time < 60:
-                stdin, stdout, _ = ssh.exec_command(check_cmd)
-                result = stdout.read().decode().strip()
-                if result == "OK":
-                    result_exists = True
-                    break
-                time.sleep(5)
-                wait_time += 5
+            wait_time = 0
+            max_wait = 180
+            try:
+                sftp = ssh.open_sftp()
+                print(f"[DEBUG] Verificando existência de: {remote_cif_path}")
+                
+                while wait_time < max_wait:
+                    try:
+                        sftp.stat(remote_cif_path)
+                        result_exists = True
+                        print(f"[DEBUG] Arquivo encontrado após {wait_time} segundos.")
+                        break
+                    except FileNotFoundError:
+                        print(f"[DEBUG] Arquivo ainda não encontrado aos {wait_time} segundos...")
+                        time.sleep(5)
+                        wait_time += 5
+            finally:
+                sftp.close()
 
             with get_db_connection() as conn:
                 if result_exists and exit_status == 0:
                     conn.execute("UPDATE uploads SET status='COMPLETO' WHERE base_name=?", (base_name,))
                     conn.commit()
-                    log_action(user_id, 'Processamento CONCLUÍDO', remote_cif)
+                    log_action(user_id, 'Processamento CONCLUÍDO', remote_cif_path)
                     send_processing_complete_email(user_name, user_email, base_name, user_id)
                 else:
                     conn.execute("UPDATE uploads SET status='ERRO' WHERE base_name=?", (base_name,))
