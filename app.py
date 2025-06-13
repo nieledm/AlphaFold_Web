@@ -857,10 +857,12 @@ def run_alphafold_in_background(cmd, user_name, user_email, base_name, user_id):
             with get_db_connection() as conn:
                 if result_exists and exit_status == 0:
                     conn.execute("UPDATE uploads SET status='COMPLETO' WHERE base_name=?", (base_name,))
+                    conn.commit()
                     log_action(user_id, 'Processamento CONCLUÍDO', remote_cif)
                     send_processing_complete_email(user_name, user_email, base_name, user_id)
                 else:
                     conn.execute("UPDATE uploads SET status='ERRO' WHERE base_name=?", (base_name,))
+                    conn.commit()
                     log_action(user_id, 'Processamento ERRO',
                             f'Exit={exit_status}, arquivo existe? {result_exists}')
                     send_email(user_email, "Erro no processamento do AlphaFold",
@@ -1015,74 +1017,6 @@ def export_data():
     except Exception as e:
         flash(f'Erro ao exportar dados: {e}', 'danger')
         return redirect(url_for('dashboard'))
-
-# @app.route('/admin/import_data', methods=['GET', 'POST'])
-# def import_data():
-#     if not session.get('is_admin'):
-#         flash('Acesso não autorizado.', 'danger')
-#         return redirect(url_for('dashboard'))
-
-#     if request.method == 'POST':
-#         data_url = request.form['data_url']
-#         if not data_url:
-#             flash('Por favor, forneça um URL para importação.', 'danger')
-#             return redirect(url_for('import_data'))
-
-#         try:
-#             response = requests.get(data_url)
-#             response.raise_for_status() # Lança exceção para erros HTTP
-#             imported_data = response.json()
-
-#             conn = get_db_connection()
-#             c = conn.cursor()
-
-#             # Exemplo de como importar: Você precisará adaptar a lógica
-#             # com base no formato do seu JSON de exportação e sua estratégia de importação
-#             if 'users' in imported_data:
-#                 for user_data in imported_data['users']:
-#                     # Exemplo: Inserir ou ignorar se já existe pelo email
-#                     existing_user = c.execute('SELECT id FROM users WHERE email = ?', (user_data['email'],)).fetchone()
-#                     if not existing_user:
-#                         c.execute('''
-#                             INSERT INTO users (name, email, password, is_admin, is_active)
-#                             VALUES (?, ?, ?, ?, ?)
-#                         ''', (user_data['name'], user_data['email'], user_data['password'],
-#                               user_data.get('is_admin', 0), user_data.get('is_active', 0)))
-#                     # else: # Opcional: atualizar usuário existente
-#                     #     c.execute('UPDATE users SET name=?, password=? WHERE email=?', ...)
-
-#             if 'uploads' in imported_data:
-#                 for upload_data in imported_data['uploads']:
-#                     # Considerar como lidar com user_id ao importar se for de outro ambiente
-#                     c.execute('''
-#                         INSERT INTO uploads (user_id, file_name, base_name, status, created_at)
-#                         VALUES (?, ?, ?, ?, ?)
-#                     ''', (upload_data['user_id'], upload_data['file_name'], upload_data['base_name'],
-#                           upload_data['status'], upload_data['created_at']))
-
-#             if 'logs' in imported_data:
-#                 for log_data in imported_data['logs']:
-#                     c.execute('''
-#                         INSERT INTO logs (user_id, action, timestamp, details)
-#                         VALUES (?, ?, ?, ?)
-#                     ''', (log_data.get('user_id'), log_data['action'], log_data['timestamp'], log_data.get('details')))
-
-
-#             conn.commit()
-#             conn.close()
-
-#             flash('Dados importados com sucesso!', 'success')
-#             # Apresentar os dados importados em uma UI: Redirecionar para uma página relevante
-#             return redirect(url_for('usuarios_ativos')) # ou uma nova rota /admin/imported_summary
-
-#         except requests.exceptions.RequestException as e:
-#             flash(f'Erro ao baixar dados do URL: {e}', 'danger')
-#         except json.JSONDecodeError:
-#             flash('Erro: O conteúdo do URL não é um JSON válido.', 'danger')
-#         except Exception as e:
-#             flash(f'Erro ao processar e armazenar dados: {e}', 'danger')
-
-#     return render_template('import_data_form.html') # <------ criar template
 
 # ==============================================================
 # LOGS
