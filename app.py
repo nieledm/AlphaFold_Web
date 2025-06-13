@@ -20,6 +20,7 @@ import zipfile
 import paramiko
 import select
 import time
+import stat
 from database import get_db_connection, init_db, DATABASE
 
 
@@ -923,6 +924,7 @@ def download_result(base_name):
 
         # Retorna o ZIP para o navegador
         zip_buffer.seek(0)
+        print(f"[DEBUG] ZIP pronto para envio, tamanho: {zip_buffer.getbuffer().nbytes} bytes")
         return send_file(
             zip_buffer,
             mimetype='application/zip',
