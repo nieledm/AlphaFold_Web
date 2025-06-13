@@ -886,21 +886,25 @@ def download_result(base_name):
         return redirect(url_for('login'))
     
     try:
+        print(f"[DEBUG] Conectando via SSH em {ALPHAFOLD_SSH_HOST}:{ALPHAFOLD_SSH_PORT} como {ALPHAFOLD_SSH_USER}")
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(hostname=ALPHAFOLD_SSH_HOST, port=ALPHAFOLD_SSH_PORT, username=ALPHAFOLD_SSH_USER)
+        ssh.connect(
+            hostname=ALPHAFOLD_SSH_HOST,
+            port=ALPHAFOLD_SSH_PORT,
+            username=ALPHAFOLD_SSH_USER
+        )
 
         sftp = ssh.open_sftp()
         remote_folder = f"{ALPHAFOLD_OUTPUT_BASE}/{user_name}/{base_name}/alphafold_prediction"
-        print(f"[DEBUG] user_name: {user_name}")
-        print(f"[DEBUG] base_name: {base_name}")
-        print(f"[DEBUG] Caminho remoto: {remote_folder}")
+        print(f"[DEBUG] Verificando pasta remota: {remote_folder}")
 
-        # Lista de arquivos do diretório remoto
         try:
             remote_files = sftp.listdir(remote_folder)
-        except IOError:
+            print(f"[DEBUG] Arquivos encontrados: {remote_files}")
+        except IOError as e:
             flash('Resultados não encontrados no servidor.', 'danger')
+            print(f"[ERRO] Falha ao acessar: {remote_folder} - Erro: {e}")
             log_action(user_id, 'Download Negado', f'Diretório remoto não encontrado: {remote_folder}')
             return redirect(url_for('dashboard'))
 
@@ -909,6 +913,7 @@ def download_result(base_name):
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
             for file_name in remote_files:
                 remote_file_path = f"{remote_folder}/{file_name}"
+                print(f"[DEBUG] Lendo arquivo remoto: {remote_file_path}")
                 with sftp.open(remote_file_path, 'rb') as remote_file:
                     file_data = remote_file.read()
                     zipf.writestr(file_name, file_data)
@@ -916,10 +921,21 @@ def download_result(base_name):
         sftp.close()
         ssh.close()
 
+        # Retorna o ZIP para o navegador
         zip_buffer.seek(0)
-        log_action(user_id, 'Download de Resultado', f'Projeto: {base_name}. Arquivos ZIP enviados.')
-        return send_file(zip_buffer, mimetype='application/zip',
-                         as_attachment=True, download_name=f"{base_name}_result.zip")
+        return send_file(
+            zip_buffer,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=f"{base_name}.zip"
+        )
+
+    except Exception as ex:
+        flash('Erro ao tentar realizar o download.', 'danger')
+        print(f"[ERRO] Exceção geral no download_result: {ex}")
+        log_action(user_id, 'Erro no Download', str(ex))
+        return redirect(url_for('dashboard'))
+
 
     except Exception as e:
         log_action(user_id, 'Erro no Download', str(e))
