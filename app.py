@@ -892,6 +892,9 @@ def download_result(base_name):
 
         sftp = ssh.open_sftp()
         remote_folder = f"{ALPHAFOLD_OUTPUT_BASE}/{user_name}/{base_name}/alphafold_prediction"
+        print(f"[DEBUG] user_name: {user_name}")
+        print(f"[DEBUG] base_name: {base_name}")
+        print(f"[DEBUG] Caminho remoto: {remote_folder}")
 
         # Lista de arquivos do diretório remoto
         try:
