@@ -919,7 +919,6 @@ def download_result(base_name):
                             add_folder_to_zip(sftp, zipf, item_full_path, item_relative_path)
                         else:
                             # É um arquivo, adiciona
-                            print(f"[DEBUG] Adicionando arquivo ao ZIP: {item_full_path}")
                             with sftp.open(item_full_path, 'rb') as f:
                                 file_data = f.read()
                                 zipf.writestr(item_relative_path, file_data)
@@ -929,15 +928,12 @@ def download_result(base_name):
             add_folder_to_zip(sftp, zipf, remote_folder)
 
 
-        print("[DEBUG] Finalizou loop de arquivos, fechando conexões...")
         sftp.close()
         ssh.close()
 
-        print("[DEBUG] Após fechar sftp e ssh")
 
         # Retorna o ZIP para o navegador
         zip_buffer.seek(0)
-        print(f"[DEBUG] ZIP pronto para envio, tamanho: {zip_buffer.getbuffer().nbytes} bytes")
         return send_file(
             zip_buffer,
             mimetype='application/zip',
