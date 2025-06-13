@@ -770,16 +770,15 @@ def upload_file():
 
         # Monta comando e roda em background
         command = (
-            # f"docker run -it "
-            f"docker run"
-            f"--volume {input_subdir}:/root/af_input"
-            f"--volume {output_user_dir}:/root/af_output"
-            f"--volume {ALPHAFOLD_PARAMS}:/root/models"
-            f"--volume {ALPHAFOLD_DB}:/root/public_databases"
-            f"--gpus all alphafold3"
-            f"python run_alphafold.py"
-            f"--json_path=/root/af_input/{filename}"
-            f"--output_dir=/root/af_output/{base_name}"
+            f"docker run "
+            f"--volume {input_subdir}:/root/af_input "
+            f"--volume {output_user_dir}:/root/af_output "
+            f"--volume {ALPHAFOLD_PARAMS}:/root/models "
+            f"--volume {ALPHAFOLD_DB}:/root/public_databases "
+            f"--gpus all alphafold3 "
+            f"python run_alphafold.py "
+            f"--json_path=/root/af_input/{filename} "
+            f"--output_dir=/root/af_output/{base_name} "
         )
 
         Thread(target=run_alphafold_in_background, args=(
