@@ -792,86 +792,87 @@ def upload_file():
     return 'Invalid file format'
 
 def run_alphafold_in_background(cmd, user_name, user_email, base_name, user_id):
-    log_action(user_id, 'Executando AlphaFold', base_name)
+    with app.app_context():
+        log_action(user_id, 'Executando AlphaFold', base_name)
 
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-    try:
-        ssh.connect(ALPHAFOLD_SSH_HOST, port=ALPHAFOLD_SSH_PORT, username=ALPHAFOLD_SSH_USER)
-
-        mkdir = f"mkdir -p '{ALPHAFOLD_INPUT_BASE}/{user_name}' " \
-                f"'{ALPHAFOLD_OUTPUT_BASE}/{user_name}/{base_name}'"
-        ssh.exec_command(mkdir)
-
-        stdin, stdout, stderr = ssh.exec_command(cmd)
-
-        # -------------- LOG EM TEMPO REAL --------------
-        stdout_lines = []
-        stderr_lines = []
-
-        while not stdout.channel.exit_status_ready():
-            rl, wl, xl = select.select([stdout.channel], [], [], 1.0)
-            if rl:
-                line = stdout.readline()
-                if line:
-                    stdout_lines.append(line.strip())
-
-            rl_err, _, _ = select.select([stderr.channel], [], [], 1.0)
-            if rl_err:
-                err_line = stderr.readline()
-                if err_line:
-                    stderr_lines.append(err_line.strip())
-
-        # Após o término, registra os logs em lote:
-        for line in stdout_lines:
-            log_action(user_id, 'AlphaFold output', line)
-        for line in stderr_lines:
-            log_action(user_id, 'AlphaFold error', line)
-        # -------------- FIM DO LOOP ---------------------
-
-        exit_status = stdout.channel.recv_exit_status()
-        log_action(user_id, 'Exit status', str(exit_status))
-
-        remote_cif = f"{ALPHAFOLD_OUTPUT_BASE}/{user_name}/{base_name}/" \
-                     f"alphafold_prediction/alphafold_prediction_model.cif"
-        
-        check_cmd = f'test -f "{remote_cif}" && echo OK || echo NO'
-        # stdin, stdout, _ = ssh.exec_command(f'test -f "{remote_cif}" && echo OK || echo NO')
-        # result_exists = stdout.read().decode().strip() == 'OK'
-
-        # Verificar se arquivo de resultado foi gerado (espera até 60s)
-        wait_time = 0
-        result_exists = False
-        while wait_time < 60:
-            stdin, stdout, _ = ssh.exec_command(check_cmd)
-            result = stdout.read().decode().strip()
-            if result == "OK":
-                result_exists = True
-                break
-            time.sleep(5)
-            wait_time += 5
-
-        with get_db_connection() as conn:
-            if result_exists and exit_status == 0:
-                conn.execute("UPDATE uploads SET status='COMPLETO' WHERE base_name=?", (base_name,))
-                log_action(user_id, 'Processamento CONCLUÍDO', remote_cif)
-                send_processing_complete_email(user_name, user_email, base_name, user_id)
-            else:
-                conn.execute("UPDATE uploads SET status='ERRO' WHERE base_name=?", (base_name,))
-                log_action(user_id, 'Processamento ERRO',
-                           f'Exit={exit_status}, arquivo existe? {result_exists}')
-                send_email(user_email, "Erro no processamento do AlphaFold",
-                           f"<p>Olá {user_name},</p><p>Ocorreu um erro e o arquivo de resultado não foi gerado.</p>")
-    except Exception as e:
-        log_action(user_id, 'Falha run_alphafold', str(e))
         try:
-            send_email(user_email, "Erro na execução AlphaFold",
-                       f"<p>Olá {user_name},</p><p>Ocorreu um erro inesperado: {e}</p>")
-        except Exception as mail_err:
-            log_action(user_id, 'Erro ao enviar e-mail', str(mail_err))
-    finally:
-        ssh.close()
+            ssh.connect(ALPHAFOLD_SSH_HOST, port=ALPHAFOLD_SSH_PORT, username=ALPHAFOLD_SSH_USER)
+
+            mkdir = f"mkdir -p '{ALPHAFOLD_INPUT_BASE}/{user_name}' " \
+                    f"'{ALPHAFOLD_OUTPUT_BASE}/{user_name}/{base_name}'"
+            ssh.exec_command(mkdir)
+
+            stdin, stdout, stderr = ssh.exec_command(cmd)
+
+            # -------------- LOG EM TEMPO REAL --------------
+            stdout_lines = []
+            stderr_lines = []
+
+            while not stdout.channel.exit_status_ready():
+                rl, wl, xl = select.select([stdout.channel], [], [], 1.0)
+                if rl:
+                    line = stdout.readline()
+                    if line:
+                        stdout_lines.append(line.strip())
+
+                rl_err, _, _ = select.select([stderr.channel], [], [], 1.0)
+                if rl_err:
+                    err_line = stderr.readline()
+                    if err_line:
+                        stderr_lines.append(err_line.strip())
+
+            # Após o término, registra os logs em lote:
+            for line in stdout_lines:
+                log_action(user_id, 'AlphaFold output', line)
+            for line in stderr_lines:
+                log_action(user_id, 'AlphaFold error', line)
+            # -------------- FIM DO LOOP ---------------------
+
+            exit_status = stdout.channel.recv_exit_status()
+            log_action(user_id, 'Exit status', str(exit_status))
+
+            remote_cif = f"{ALPHAFOLD_OUTPUT_BASE}/{user_name}/{base_name}/" \
+                        f"alphafold_prediction/alphafold_prediction_model.cif"
+            
+            check_cmd = f'test -f "{remote_cif}" && echo OK || echo NO'
+            # stdin, stdout, _ = ssh.exec_command(f'test -f "{remote_cif}" && echo OK || echo NO')
+            # result_exists = stdout.read().decode().strip() == 'OK'
+
+            # Verificar se arquivo de resultado foi gerado (espera até 60s)
+            wait_time = 0
+            result_exists = False
+            while wait_time < 60:
+                stdin, stdout, _ = ssh.exec_command(check_cmd)
+                result = stdout.read().decode().strip()
+                if result == "OK":
+                    result_exists = True
+                    break
+                time.sleep(5)
+                wait_time += 5
+
+            with get_db_connection() as conn:
+                if result_exists and exit_status == 0:
+                    conn.execute("UPDATE uploads SET status='COMPLETO' WHERE base_name=?", (base_name,))
+                    log_action(user_id, 'Processamento CONCLUÍDO', remote_cif)
+                    send_processing_complete_email(user_name, user_email, base_name, user_id)
+                else:
+                    conn.execute("UPDATE uploads SET status='ERRO' WHERE base_name=?", (base_name,))
+                    log_action(user_id, 'Processamento ERRO',
+                            f'Exit={exit_status}, arquivo existe? {result_exists}')
+                    send_email(user_email, "Erro no processamento do AlphaFold",
+                            f"<p>Olá {user_name},</p><p>Ocorreu um erro e o arquivo de resultado não foi gerado.</p>")
+        except Exception as e:
+            log_action(user_id, 'Falha run_alphafold', str(e))
+            try:
+                send_email(user_email, "Erro na execução AlphaFold",
+                        f"<p>Olá {user_name},</p><p>Ocorreu um erro inesperado: {e}</p>")
+            except Exception as mail_err:
+                log_action(user_id, 'Erro ao enviar e-mail', str(mail_err))
+        finally:
+            ssh.close()
 
 @app.route('/download/<base_name>')
 def download_result(base_name):
