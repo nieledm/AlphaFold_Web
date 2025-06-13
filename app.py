@@ -909,16 +909,25 @@ def download_result(base_name):
         # Cria um ZIP em memória
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            for file_name in remote_files:
-                try:
-                    remote_file_path = f"{remote_folder}/{file_name}"
-                    print(f"[DEBUG] Lendo arquivo remoto: {remote_file_path}")
-                    with sftp.open(remote_file_path, 'rb') as remote_file:
-                        file_data = remote_file.read()
-                        zipf.writestr(file_name, file_data)
-                        print(f"[DEBUG] Adicionado ao ZIP: {file_name}")
-                except Exception as file_err:
-                    print(f"[ERRO] Falha ao adicionar '{file_name}': {file_err}")
+            def add_folder_to_zip(sftp, zipf, remote_path, relative_path=''):
+                for item in sftp.listdir(remote_path):
+                    item_full_path = f"{remote_path}/{item}"
+                    item_relative_path = f"{relative_path}/{item}" if relative_path else item
+                    try:
+                        if stat.S_ISDIR(sftp.stat(item_full_path).st_mode):
+                            # É uma pasta, chama recursivamente
+                            add_folder_to_zip(sftp, zipf, item_full_path, item_relative_path)
+                        else:
+                            # É um arquivo, adiciona
+                            print(f"[DEBUG] Adicionando arquivo ao ZIP: {item_full_path}")
+                            with sftp.open(item_full_path, 'rb') as f:
+                                file_data = f.read()
+                                zipf.writestr(item_relative_path, file_data)
+                    except Exception as e:
+                        print(f"[ERRO] Erro ao processar {item_full_path}: {e}")
+
+            add_folder_to_zip(sftp, zipf, remote_folder)
+
 
         print("[DEBUG] Finalizou loop de arquivos, fechando conexões...")
         sftp.close()
