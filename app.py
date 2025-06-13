@@ -910,13 +910,17 @@ def download_result(base_name):
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
             for file_name in remote_files:
-                remote_file_path = f"{remote_folder}/{file_name}"
-                print(f"[DEBUG] Lendo arquivo remoto: {remote_file_path}")
-                with sftp.open(remote_file_path, 'rb') as remote_file:
-                    file_data = remote_file.read()
-                    zipf.writestr(file_name, file_data)
-                    print("[DEBUG] Antes de fechar sftp e ssh")
+                try:
+                    remote_file_path = f"{remote_folder}/{file_name}"
+                    print(f"[DEBUG] Lendo arquivo remoto: {remote_file_path}")
+                    with sftp.open(remote_file_path, 'rb') as remote_file:
+                        file_data = remote_file.read()
+                        zipf.writestr(file_name, file_data)
+                        print(f"[DEBUG] Adicionado ao ZIP: {file_name}")
+                except Exception as file_err:
+                    print(f"[ERRO] Falha ao adicionar '{file_name}': {file_err}")
 
+        print("[DEBUG] Finalizou loop de arquivos, fechando conexões...")
         sftp.close()
         ssh.close()
 
