@@ -1,6 +1,7 @@
 from functools import wraps
 from flask import Flask, render_template, redirect, url_for, flash, request, session, g, send_file, jsonify, current_app
 import os
+import io
 import subprocess
 import json
 import re
@@ -878,43 +879,49 @@ def download_result(base_name):
     """Permite download do arquivo processado se pronto"""
     user_id = session.get('user_id')
     user_name = session.get('user_name')
+    
     if not user_name:
         flash('Usuário não encontrado. Faça login novamente.', 'warning')
         log_action(None, 'Tentativa de Download (Não Autenticado)', f'BaseName: {base_name}')
         return redirect(url_for('login'))
     
-    ssh_host = ALPHAFOLD_SSH_HOST
-    ssh_port = ALPHAFOLD_SSH_PORT
-    ssh_user_name = ALPHAFOLD_SSH_USER
-    
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    try:
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(hostname=ALPHAFOLD_SSH_HOST, port=ALPHAFOLD_SSH_PORT, username=ALPHAFOLD_SSH_USER)
 
-    ssh.connect(hostname=ssh_host, port=ssh_port, username=ssh_user_name)
+        sftp = ssh.open_sftp()
+        remote_folder = f"{ALPHAFOLD_OUTPUT_BASE}/{user_name}/{base_name}/alphafold_prediction"
 
-    
-    # Diretório específico do usuário
-    output_user_dir = os.path.join(ALPHAFOLD_OUTPUT_BASE, user_name)
-    folder_to_zip = os.path.join(output_user_dir, base_name)
+        # Lista de arquivos do diretório remoto
+        try:
+            remote_files = sftp.listdir(remote_folder)
+        except IOError:
+            flash('Resultados não encontrados no servidor.', 'danger')
+            log_action(user_id, 'Download Negado', f'Diretório remoto não encontrado: {remote_folder}')
+            return redirect(url_for('dashboard'))
 
-    if not os.path.exists(folder_to_zip):
-        flash('Resultados não encontrados.', 'danger')
-        log_action(user_id, 'Download Negado', f'Projeto {base_name} não encontrado no BD.')
+        # Cria um ZIP em memória
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for file_name in remote_files:
+                remote_file_path = f"{remote_folder}/{file_name}"
+                with sftp.open(remote_file_path, 'rb') as remote_file:
+                    file_data = remote_file.read()
+                    zipf.writestr(file_name, file_data)
+
+        sftp.close()
+        ssh.close()
+
+        zip_buffer.seek(0)
+        log_action(user_id, 'Download de Resultado', f'Projeto: {base_name}. Arquivos ZIP enviados.')
+        return send_file(zip_buffer, mimetype='application/zip',
+                         as_attachment=True, download_name=f"{base_name}_result.zip")
+
+    except Exception as e:
+        log_action(user_id, 'Erro no Download', str(e))
+        flash('Erro ao processar o download.', 'danger')
         return redirect(url_for('dashboard'))
-
-    # Cria um arquivo zip temporário
-    temp_zip = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
-    with zipfile.ZipFile(temp_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        for root, _, files in os.walk(folder_to_zip):
-            for file in files:
-                full_path = os.path.join(root, file)
-                arcname = os.path.relpath(full_path, start=folder_to_zip)
-                zipf.write(full_path, arcname)
-
-    temp_zip.seek(0)
-    log_action(user_id, 'Download de Resultado', f'Projeto: {base_name}. Arquivo: {base_name}_result.zip')
-    return send_file(temp_zip.name, mimetype='application/zip',
-                     as_attachment=True, download_name=f"{base_name}_result.zip")
 
 # ==============================================================
 # COMPLETAR TRABALHO FABRÍCIO
