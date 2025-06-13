@@ -887,7 +887,6 @@ def download_result(base_name):
         return redirect(url_for('login'))
     
     try:
-        print(f"[DEBUG] Conectando via SSH em {ALPHAFOLD_SSH_HOST}:{ALPHAFOLD_SSH_PORT} como {ALPHAFOLD_SSH_USER}")
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(
@@ -898,11 +897,9 @@ def download_result(base_name):
 
         sftp = ssh.open_sftp()
         remote_folder = f"{ALPHAFOLD_OUTPUT_BASE}/{user_name}/{base_name}/alphafold_prediction"
-        print(f"[DEBUG] Verificando pasta remota: {remote_folder}")
 
         try:
             remote_files = sftp.listdir(remote_folder)
-            print(f"[DEBUG] Arquivos encontrados: {remote_files}")
         except IOError as e:
             flash('Resultados não encontrados no servidor.', 'danger')
             print(f"[ERRO] Falha ao acessar: {remote_folder} - Erro: {e}")
@@ -918,9 +915,12 @@ def download_result(base_name):
                 with sftp.open(remote_file_path, 'rb') as remote_file:
                     file_data = remote_file.read()
                     zipf.writestr(file_name, file_data)
+                    print("[DEBUG] Antes de fechar sftp e ssh")
 
         sftp.close()
         ssh.close()
+
+        print("[DEBUG] Após fechar sftp e ssh")
 
         # Retorna o ZIP para o navegador
         zip_buffer.seek(0)
