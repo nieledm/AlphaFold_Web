@@ -260,6 +260,18 @@ def logout():
     flash('Logout realizado com sucesso.', 'info')
     return redirect(url_for('login'))
 
+
+def validar_nome(nome):
+    return len(nome.strip().split()) >= 2
+
+def validar_email(email):
+    dominios = ['unicamp', 'unesp', 'usp', 'fatec', 'unifesp', 'unb', 'ufrj', 'ufmg', 'ufrgs']
+    return any(d in email.lower() for d in dominios)
+
+def validar_senha(senha):
+    regex = re.compile(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$')
+    return regex.match(senha)
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     """Rota de registro de novos usuários"""
@@ -267,6 +279,23 @@ def register():
         name = request.form['name']
         email = request.form['email']
         password = request.form['password']
+        password_confirm = request.form['password_confirm']
+
+        if not validar_nome(name):
+            flash("Nome precisa conter nome e sobrenome.")
+            return render_template('register.html', name=name, email=email)
+
+        if not validar_email(email):
+            flash("E-mail deve ser institucional válido.", name=name, email=email)
+            return render_template('register.html', name=name, email=email)
+
+        if password != password_confirm:
+            flash("Senhas não conferem.")
+            return render_template('register.html', name=name, email=email)
+
+        if not validar_senha(password):
+            flash("Senha deve conter mínimo 8 caracteres, letras maiúsculas, minúsculas, números e caracteres especiais.")
+            return render_template('register.html', name=name, email=email)
 
         if get_user_by_email(email):
             flash('E-mail já cadastrado.', 'danger')

@@ -5,18 +5,36 @@
   <div class="col-md-6">
     <div class="card">
       <h2 class="text-center mb-4">Cadastro</h2>
-      <form method="POST" action="{{ url_for('register') }}">
+      <form id="registerForm" method="POST" action="{{ url_for('register') }}">
         <div class="mb-3">
-          <label for="name" class="form-label">Nome</label>
+          <label for="name" class="form-label">Nome Completo</label>
           <input type="text" class="form-control" id="name" name="name" required>
+          <div class="invalid-feedback">Por favor, insira nome e pelo menos um sobrenome.</div>
         </div>
         <div class="mb-3">
-          <label for="email" class="form-label">E-mail</label>
+          <label for="email" class="form-label">E-mail institucional</label>
           <input type="email" class="form-control" id="email" name="email" required>
+          <div class="invalid-feedback">Por favor, insira um e-mail institucional válido.</div>
         </div>
         <div class="mb-3">
           <label for="password" class="form-label">Senha</label>
           <input type="password" class="form-control" id="password" name="password" required>
+        </div>
+        <div class="mb-3">
+          <label for="password_confirm" class="form-label">Confirmar Senha</label>
+          <input type="password" class="form-control" id="password_confirm" name="password_confirm" required>
+          <div class="invalid-feedback">As senhas devem ser iguais e atender aos requisitos de segurança.</div>
+        </div>
+        <div id="password-requirements" class="mb-3">
+          <p>Requisitos da senha:</p>
+          <ul style="list-style:none; padding-left: 0;">
+            <li id="length" class="text-danger">❌ Mínimo de 8 caracteres</li>
+            <li id="lowercase" class="text-danger">❌ Letra minúscula</li>
+            <li id="uppercase" class="text-danger">❌ Letra maiúscula</li>
+            <li id="number" class="text-danger">❌ Número</li>
+            <li id="special" class="text-danger">❌ Caractere especial</li>
+            <li id="password-match" class="text-danger">❌ Senhas coincidem</li>
+          </ul>
         </div>
         <button type="submit" class="btn btn-light w-100">Cadastrar</button>
         <p class="mt-3 text-center">Já tem uma conta? <a href="{{ url_for('login') }}">Faça login</a></p>
@@ -24,4 +42,7 @@
     </div>
   </div>
 </div>
+{% endblock %}
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/register.js') }}"></script>
 {% endblock %}
