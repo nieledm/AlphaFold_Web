@@ -22,7 +22,7 @@
   {% block css %}{% endblock %}
 </head>
 <body>
-  {% if request.endpoint not in ['login', 'register'] %}
+  {% if request.endpoint not in ['login', 'register', 'termos_de_uso'] %}
     <div class="header">
       <!-- Logo do laboratório -->
       <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo CQMED" class="logo" style="width: 120px; height: 40px; margin-right: 8px;">

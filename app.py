@@ -218,6 +218,8 @@ def index():
         return redirect(url_for('dashboard'))
     return redirect(url_for('login'))
 
+from flask import session, redirect, url_for, render_template, request
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """Rota de login"""
@@ -260,6 +262,23 @@ def logout():
     flash('Logout realizado com sucesso.', 'info')
     return redirect(url_for('login'))
 
+@app.route('/termos', methods=['GET', 'POST'])
+def termos_de_uso():
+    # Se já aceitou os termos, redireciona para registro
+    if session.get('terms_accepted'):
+        return redirect(url_for('register'))
+    
+    if request.method == 'POST':
+        if request.form.get('accept_terms'):
+            session['terms_accepted'] = True
+            session.modified = True
+            return redirect(url_for('register'))
+        else:
+            session.clear()
+            return redirect(url_for('login'))
+    
+    return render_template('termo_de_uso.html')
+
 
 def validar_nome(nome):
     return len(nome.strip().split()) >= 2
@@ -275,6 +294,11 @@ def validar_senha(senha):
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     """Rota de registro de novos usuários"""
+    # Verifica se os termos foram aceitos
+    if not session.get('terms_accepted'):
+        flash('Você precisa aceitar os termos de uso antes de se registrar', 'warning')
+        return redirect(url_for('termos_de_uso'))
+    
     if request.method == 'POST':
         name = request.form['name']
         email = request.form['email']
