@@ -21,7 +21,6 @@ import paramiko
 import select
 import time
 import stat
-import requests
 from database import get_db_connection, init_db, DATABASE
 
 
@@ -163,20 +162,24 @@ def send_activation_email(user_email, user_name):
 
 def send_processing_complete_email(user_name, user_email, base_name, user_id):
     """Envia e-mail ao usuário informando que o processamento foi concluído"""
-    download_url = url_for('download_result', user_id=user_id, project_name=base_name, _external=True)
+    try:
+        download_url = url_for('download_result', base_name=base_name, _external=True)
+    except Exception as e:
+        print(f"[ERRO] Falha ao gerar link de download: {e}")
+        download_url = "[Erro ao gerar link]"
+
     html = f"""
     <html>
         <body>
             <p>Olá {user_name},</p>
             <p>Seu processamento com o AlphaFold foi concluído com sucesso.</p>
-            <p>Você pode baixar o resultado clicando no link abaixo:</p>
+            <p>Você pode baixar o resultado indo ao seu dashboard ou clicando no link abaixo:</p>
             <p><a href="{download_url}">Download do resultado</a></p>
             <p>Obrigado por usar o sistema AlphaFold!</p>
         </body>
     </html>
     """
     send_email(user_email, "AlphaFold: Resultado disponível", html)
-
 
 # ==============================================================
 # FUNÇÕES DE VALIDAÇÃO
@@ -228,7 +231,7 @@ def login():
         if user:
             user_id_for_log = user['id']
 
-        if user and user['password'] == password:
+        if user and check_password_hash(user['password'], password):
             session['user_id'] = user['id']
             if user['is_active'] == 0:
                 flash('Seu cadastro ainda não foi aprovado.', 'warning')
@@ -269,7 +272,7 @@ def register():
             flash('E-mail já cadastrado.', 'danger')
             return redirect(url_for('login'))
 
-        user_data = {'name': name, 'email': email, 'password': password}
+        user_data = {'name': name, 'email': email, 'password': generate_password_hash(password)}
         token = serializer.dumps(user_data, salt='email-verification')
         send_verification_email(name, email, token)
         flash('Verifique seu e-mail para confirmar o cadastro.', 'info')
@@ -307,6 +310,51 @@ def confirm_email(token):
         log_action(None, f'Falha na confirmação do eail {email_for_log}')
         return redirect(url_for('register'))
 
+@app.route('/esqueci_senha', methods=['GET', 'POST'])
+def esqueci_senha():
+    if request.method == 'POST':
+        email = request.form['email']
+        user = get_user_by_email(email)
+        if user and user['is_active'] == 1:
+            token = serializer.dumps(email, salt='reset-password')
+            reset_url = url_for('resetar_senha', token=token, _external=True)
+            html = f"""
+            <p>Olá,</p>
+            <p>Para redefinir sua senha para o AlphaFold Web, clique no link abaixo:</p>
+            <p><a href="{reset_url}">Redefinir senha</a></p>
+            """
+            send_email(email, "Redefinição de senha - AlphaFold", html)
+            flash("Um link de redefinição foi enviado para seu e-mail.", "info")
+        else:
+            flash("E-mail não encontrado ou inativo.", "danger")
+    return render_template('esqueci_senha.html')
+
+@app.route('/resetar_senha/<token>', methods=['GET', 'POST'])
+def resetar_senha(token):
+    try:
+        email = serializer.loads(token, salt='reset-password', max_age=3600)
+    except:
+        flash("O link expirou ou é inválido.", "danger")
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        nova_senha = request.form['nova_senha']
+        confirmar_senha = request.form['confirmar_senha']
+
+        if nova_senha != confirmar_senha:
+            flash("As senhas não coincidem. Tente novamente.", "danger")
+            return render_template('resetar_senha.html')
+
+        senha_hash = generate_password_hash(nova_senha)
+        conn = get_db_connection()
+        conn.execute('UPDATE users SET password = ? WHERE email = ?', (senha_hash, email))
+        conn.commit()
+        conn.close()
+        flash("Senha redefinida com sucesso.", "success")
+        return redirect(url_for('login'))
+
+    return render_template('resetar_senha.html')
+    
 # ==============================================================
 # ROTAS DE USUÁRIO
 # ==============================================================
@@ -339,6 +387,10 @@ def aviso(aviso_id):
         3: "A sua conta foi ativada com sucesso!",
     }
     return render_template('base_avisos.html', aviso_mensagem=avisos.get(aviso_id, "Aviso desconhecido."))
+
+@app.route('/sobre')
+def sobre():
+    return render_template('sobre.html', active_page='sobre')
 
 # ==============================================================
 # ROTAS DE ADMINISTRAÇÃO
@@ -836,35 +888,29 @@ def run_alphafold_in_background(cmd, user_name, user_email, base_name, user_id):
             exit_status = stdout.channel.recv_exit_status()
             log_action(user_id, 'Exit status', str(exit_status))
 
-            remote_cif_path = f"{ALPHAFOLD_OUTPUT_BASE}/{user_name}/{base_name}/" \
-                              f"alphafold_prediction/alphafold_prediction_model.cif"
+            remote_cif = f"{ALPHAFOLD_OUTPUT_BASE}/{user_name}/{base_name}/" \
+                        f"alphafold_prediction/alphafold_prediction_model.cif"
             
-            # ----------- VERIFICAÇÃO DO RESULTADO (.cif) -----------
+            check_cmd = f'test -f "{remote_cif}" && echo OK || echo NO'
+
+            # Verificar se arquivo de resultado foi gerado (espera até 60s)
             result_exists = False
             wait_time = 0
-            max_wait = 180
-            try:
-                sftp = ssh.open_sftp()
-                print(f"[DEBUG] Verificando existência de: {remote_cif_path}")
-                
-                while wait_time < max_wait:
-                    try:
-                        sftp.stat(remote_cif_path)
-                        result_exists = True
-                        print(f"[DEBUG] Arquivo encontrado após {wait_time} segundos.")
-                        break
-                    except FileNotFoundError:
-                        print(f"[DEBUG] Arquivo ainda não encontrado aos {wait_time} segundos...")
-                        time.sleep(5)
-                        wait_time += 5
-            finally:
-                sftp.close()
+
+            while wait_time < 60:
+                stdin, stdout, _ = ssh.exec_command(check_cmd)
+                result = stdout.read().decode().strip()
+                if result == "OK":
+                    result_exists = True
+                    break
+                time.sleep(5)
+                wait_time += 5
 
             with get_db_connection() as conn:
                 if result_exists and exit_status == 0:
                     conn.execute("UPDATE uploads SET status='COMPLETO' WHERE base_name=?", (base_name,))
                     conn.commit()
-                    log_action(user_id, 'Processamento CONCLUÍDO', remote_cif_path)
+                    log_action(user_id, 'Processamento CONCLUÍDO', remote_cif)
                     send_processing_complete_email(user_name, user_email, base_name, user_id)
                 else:
                     conn.execute("UPDATE uploads SET status='ERRO' WHERE base_name=?", (base_name,))
@@ -961,23 +1007,40 @@ def download_result(base_name):
         flash('Erro ao processar o download.', 'danger')
         return redirect(url_for('dashboard'))
 
-# ==============================================================
-# COMPLETAR TRABALHO FABRÍCIO
-# ==============================================================
+@app.route('/delete_result/<base_name>', methods=['POST'])
+@login_required
+def delete_result(base_name):
+    user_id = session['user_id']
+    user_name = session['user_name']
+    
+    try:
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(ALPHAFOLD_SSH_HOST, port=ALPHAFOLD_SSH_PORT, username=ALPHAFOLD_SSH_USER)
+        sftp = ssh.open_sftp()
+        
+        target_dir = f"{ALPHAFOLD_OUTPUT_BASE}/{user_name}/{base_name}"
+        ssh.exec_command(f"rm -rf '{target_dir}'")
 
-@app.route('/sobre')
-def sobre():
-    # Dados do projeto e desenvolvedores
-    project_info = {
-        "tema": "Previsão de Estruturas de Proteínas com AlphaFold",
-        "objetivo": "Aplicação web em Python para gerenciar e executar previsões de estruturas de proteínas utilizando o AlphaFold, permitindo o upload de dados de entrada, acompanhamento do processamento e download dos resultados.",
-        "desenvolvedores": [
-            {"nome": "Bruno Celso Fonseca", "RA": "2840482223016"},
-            {"nome": "Gustavo Zitei Vicente", "RA": "2840482223035"},
-            {"nome": "Niele Dias Mendes", "RA": "2840482123046"}
-        ]
-    }
-    return render_template('sobre.html', project_info=project_info, active_page='sobre')
+        conn = get_db_connection()
+        conn.execute("UPDATE uploads SET status='EXCLUIDO' WHERE base_name = ?", (base_name,))
+        conn.commit()
+        conn.close()
+
+        sftp.close()
+        ssh.close()
+
+        flash("Resultado excluído com sucesso.", "success")
+        log_action(user_id, 'Resultado Excluído', f'BaseName: {base_name}')
+    except Exception as e:
+        flash("Erro ao excluir resultado.", "danger")
+        log_action(user_id, 'Erro ao excluir resultado', str(e))
+
+    return redirect(url_for('dashboard'))
+
+# ==============================================================
+# BACKUP ALPHAFOLD3
+# ==============================================================
 
 @app.route('/admin/export_data')
 def export_data():
@@ -1077,7 +1140,6 @@ def view_logs():
     conn = get_db_connection()
     logs = []
     try:
-        # query = "SELECT id, user_id, action, timestamp, details FROM logs WHERE 1=1"
         query = """
             SELECT 
                 l.id, 
@@ -1108,10 +1170,6 @@ def view_logs():
             except ValueError:
                 flash('ID do usuário para filtro inválido.', 'danger')
                 user_id_filter = ''
-
-        # if action_filter:
-        #     query += " AND action LIKE ?"
-        #     params.append(f'%{action_filter}%')
 
         if start_date:
             query += " AND timestamp >= ?"

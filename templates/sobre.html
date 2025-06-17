@@ -1,38 +1,93 @@
-{% extends "base.html" %}
-
+{% extends 'base.html' %}
 {% block content %}
-<div class="container mt-0">
-    <h1 class="mb-4">Sobre o Projeto</h1>
-
-    <div class="card mb-4">
-        <div class="card-header">
-            Tema do Projeto
-        </div>
-        <div class="card-body">
-            <p>{{ project_info.tema }}</p>
-        </div>
+<div class="container mt-5">
+  <div class="row mb-4">
+    <div class="col text-center">
+      <h1 class="display-5 fw-bold">Ajuda Rápida</h1>
+      <p class="text-muted">Dúvidas frequentes e orientações de uso</p>
     </div>
+  </div>
 
-    <div class="card mb-4">
-        <div class="card-header">
-            Objetivo
-        </div>
-        <div class="card-body">
-            <p>{{ project_info.objetivo }}</p>
-        </div>
+  <div class="row mb-5">
+    <div class="col-md-10 offset-md-1">
+      <div class="card shadow-sm p-4 border-0">
+        <ul class="list-group list-group-flush">
+          <li class="list-group-item">
+            <strong>❓ Não recebi o e-mail de confirmação:</strong><br>
+            Verifique sua caixa de spam. Caso não encontre, entre em contato com o administrador do sistema.
+          </li>
+          <li class="list-group-item">
+            <strong>🔑 Esqueci minha senha:</strong><br>
+            Utilize a opção <a href="{{ url_for('esqueci_senha') }}">Esqueceu sua senha?</a> na página de login.
+          </li>
+          <li class="list-group-item">
+            <strong>📦 Como gerar um arquivo JSON válido?</strong><br>
+            Use o assistente de criação em <a href="{{ url_for('builder_json_form') }}">JSON Builder</a>.
+          </li>
+          <li class="list-group-item">
+            <strong>⚠️ Erro no processamento:</strong><br>
+            Verifique o formato do arquivo JSON. Persistindo, envie e-mail de suporte com o nome do job.
+          </li>
+          <li class="list-group-item">
+            <strong>🗑️ Como excluir um resultado?</strong><br>
+            Após o processamento, clique em <strong>Excluir</strong> no painel ao lado do arquivo.
+          </li>
+        </ul>
+      </div>
     </div>
+  </div>
 
-    <div class="card mb-4">
-        <div class="card-header">
-            Desenvolvedor(es)
-        </div>
-        <div class="card-body">
-            <ul class="list-group list-group-flush">
-                {% for dev in project_info.desenvolvedores %}
-                    <li class="list-group-item">{{ dev.nome }} (RA: {{ dev.RA }})</li>
-                {% endfor %}
+  <hr class="my-5">
+
+  <div class="row mb-4">
+    <div class="col text-center">
+      <h2 class="fw-bold">Sobre o Sistema</h2>
+      <p class="text-muted">Conheça as funcionalidades do AlphaFold Web</p>
+    </div>
+  </div>
+
+  <div class="row justify-content-center mb-4">
+    <div class="col-md-10">
+      <div class="card p-4 shadow-sm border-0">
+        <p>
+          O <strong>AlphaFold Web</strong> é uma plataforma desenvolvida para facilitar o uso do AlphaFold em ambientes com múltiplos usuários, centralizando o envio de dados, o monitoramento de execuções e o download dos resultados.
+        </p>
+        <h5 class="mt-3">Funcionalidades</h5>
+        <ul>
+          <li>Cadastro de usuários com aprovação por administrador</li>
+          <li>Validação automatizada de sequências e JSON</li>
+          <li>Submissão de jobs via Docker</li>
+          <li>Execução remota com monitoramento por SSH</li>
+          <li>Envio automático de e-mails com links de download</li>
+          <li>Logs detalhados por usuário e operação</li>
+          <li>Exclusão dos arquivos após download</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mb-5">
+    <div class="col-md-10 offset-md-1">
+      <div class="card p-4 shadow-sm border-0 bg-light">
+        <h5 class="fw-bold mb-3">Tecnologias Utilizadas</h5>
+        <div class="row">
+          <div class="col-md-6">
+            <ul>
+              <li><strong>Frontend:</strong> HTML5, Bootstrap, Jinja2</li>
+              <li><strong>Backend:</strong> Python 3.10+, Flask</li>
+              <li><strong>Banco de Dados:</strong> SQLite3</li>
             </ul>
+          </div>
+          <div class="col-md-6">
+            <ul>
+              <li><strong>Execução Remota:</strong> Paramiko (SSH/SFTP)</li>
+              <li><strong>Processamento:</strong> Docker + AlphaFold em GPU</li>
+              <li><strong>E-mails:</strong> Gmail SMTP com TLS</li>
+            </ul>
+          </div>
         </div>
+      </div>
     </div>
+  </div>
 </div>
 {% endblock %}

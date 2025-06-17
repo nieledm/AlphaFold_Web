@@ -61,6 +61,9 @@
                 <td>
                     {% if upload['status'] == 'COMPLETO' %}
                         <a href="{{ url_for('download_result', base_name=upload['base_name']) }}" class="btn btn-sm btn-success">Download</a>
+                        <form method="POST" action="{{ url_for('delete_result', base_name=upload['base_name']) }}" style="display:inline;" onsubmit="return confirm('Deseja excluir este resultado?');">
+                            <button type="submit" class="btn btn-sm btn-danger ms-1">Excluir</button>
+                        </form>
                     {% elif  upload['status'] == 'ERRO' %}
                         <i class="fas fa-exclamation-circle text-danger"></i> Erro
                     {% else %}
