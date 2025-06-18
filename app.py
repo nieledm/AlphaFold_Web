@@ -1,5 +1,6 @@
 from functools import wraps
 from flask import Flask, render_template, redirect, url_for, flash, request, session, g, send_file, jsonify, current_app
+from flask import session, redirect, url_for, render_template, request
 import os
 import io
 import subprocess
@@ -218,7 +219,6 @@ def index():
         return redirect(url_for('dashboard'))
     return redirect(url_for('login'))
 
-from flask import session, redirect, url_for, render_template, request
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -254,6 +254,10 @@ def login():
             log_action(user_id_for_log, 'Tentativa de Login Falha', f'Credenciais inválidas para o email: {email}')
 
     return render_template('login.html')
+
+@app.route('/ver_sessao')
+def ver_sessao():
+    return dict(session)
 
 @app.route('/logout')
 def logout():
@@ -422,6 +426,8 @@ def dashboard():
     if 'user_id' not in session:
         flash('Por favor, faça login primeiro.', 'warning')
         return redirect(url_for('login'))
+
+    print("Sessão após login:", dict(session))
     
     conn = get_db_connection()
     uploads = conn.execute(
@@ -448,7 +454,9 @@ def aviso(aviso_id):
 
 @app.route('/sobre')
 def sobre():
-    return render_template('sobre.html', active_page='sobre')
+    return render_template('sobre.html',
+                           active_page='sobre',
+                           nome_usuario=session.get('user_name', 'Usuário'))
 
 # ==============================================================
 # ROTAS DE ADMINISTRAÇÃO
@@ -476,7 +484,8 @@ def usuarios_ativos():
                          titulo='Usuários Ativos',
                          active_page='ativos', 
                          usuarios_ativos=usuarios_ativos,                            
-                         search_query=search_query)
+                         search_query=search_query,
+                         nome_usuario=session.get('user_name', 'Usuário'))
 
 @app.route('/admin/usuarios_pendentes')
 def usuarios_pendentes():
@@ -501,7 +510,8 @@ def usuarios_pendentes():
                          titulo='Usuários Pendentes de Ativação',
                          active_page='pendentes', 
                          usuarios_pendentes=usuarios_pendentes, 
-                         search_query=search_query)
+                         search_query=search_query,
+                         nome_usuario=session.get('user_name', 'Usuário'))
 
 @app.route('/admin/usuarios_desativados')
 def usuarios_desativados():
@@ -526,7 +536,8 @@ def usuarios_desativados():
                          titulo='Usuários Desativados',
                          active_page='desativados', 
                          usuarios_desativados=usuarios_desativados, 
-                         search_query=search_query)
+                         search_query=search_query,
+                         nome_usuario=session.get('user_name', 'Usuário'))
 
 @app.route('/admin/aprovar/<int:user_id>', methods=['POST'])
 def aprovar_usuario(user_id):
@@ -705,10 +716,13 @@ def toggle_admin(user_id):
 # ==============================================================
 @app.route('/builder_json_form', methods=['GET'])
 def builder_json_form():
-    return render_template('builder_json_form.html')
+    print("Usuário na sessão:", dict(session))
+    return render_template('builder_json_form.html',
+                            nome_usuario=session.get('user_name', 'Usuário'))
 
 @app.route('/generate_json', methods=['POST'])
 def generate_json():
+
     user_id = session.get('user_id')
     user_name = session.get('user_name', 'Usuário Desconhecido')
 
@@ -1253,7 +1267,8 @@ def view_logs():
                            user_id_filter=user_id_filter,
                            start_date=start_date,
                            end_date=end_date,
-                           active_page='logs')
+                           active_page='logs',
+                           nome_usuario=session.get('user_name', 'Usuário'))
 
 @app.route('/admin/clear_logs', methods=['POST'])
 @admin_required
