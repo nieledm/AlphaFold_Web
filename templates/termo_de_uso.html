@@ -33,33 +33,44 @@
           </li>
         </ol>
         
-        <!-- Termos do AlphaFold fixos -->
-        <div class="card border-warning mb-4">
-          <div class="card-header bg-warning text-dark">
-            <strong>Atenção</strong>
-          </div>
-          <div class="card-body">
-            <p class="mb-0">Para a utilização do AlphaFold Web, você deve concordar com os:</p>
-            <a href="https://github.com/google-deepmind/alphafold3/blob/main/WEIGHTS_TERMS_OF_USE.md" 
-               target="_blank" 
-               class="btn btn-outline-dark btn-sm mt-2">
-               Termos de Uso do AlphaFold3
-            </a>
-          </div>
-        </div>
-        
-        <p class="fw-bold">Se não concordar com estes termos, encerre sua sessão imediatamente.</p>
-        
-        <p>Dúvidas? <a href="mailto:nieledm@unicamp.br">Contate-nos</a>.</p>
-
-        <div class="mb-2 pb-3 border-bottom">
-          <p class="mb-0">Atenciosamente,</p>
-          <p class="mb-0"><strong>CQMED</strong></p>
-          <p class="mb-0">UNICAMP</p>
-        </div>
-        
-        <!-- Formulário -->
+        <!-- Termos de uso e forms -->
         <form method="POST" action="{{ url_for('termos_de_uso') }}" class="mt-2">
+          <div class="card border-warning mb-4">
+            <div class="card-header bg-warning text-dark">
+              <strong>Atenção</strong>
+            </div>
+            <div class="card-body">
+              <p class="mb-0">Para a utilização do AlphaFold Web, você deve concordar com os termos abaixo:</p>
+              <!-- <a href="https://github.com/google-deepmind/alphafold3/blob/main/WEIGHTS_TERMS_OF_USE.md" 
+                target="_blank" 
+                class="btn btn-outline-dark btn-sm mt-2">
+                Termos de Uso do AlphaFold3
+              </a> -->
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="accept_alphafold" name="accept_alphafold" required>
+              <label class="form-check-label" for="accept_alphafold">
+                Li e concordo com os <a href="https://github.com/google-deepmind/alphafold3/blob/main/WEIGHTS_TERMS_OF_USE.md" target="_blank">Termos de Uso do AlphaFold3</a>
+              </label>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="accept_detic" name="accept_detic" required>
+              <label class="form-check-label" for="accept_detic">
+                Li e concordo com os <a href="{{ url_for('static', filename='files/termos_detic.pdf') }}" target="_blank">Termos de Uso da Rede UNICAMP (DETIC)</a>
+              </label>
+            </div>
+          </div>
+        
+          <p class="fw-bold">Se não concordar com estes termos, encerre sua sessão imediatamente.</p>
+          
+          <p>Dúvidas? <a href="mailto:nieledm@unicamp.br">Contate-nos</a>.</p>
+
+          <div class="mb-2 pb-3 border-bottom">
+            <p class="mb-0">Atenciosamente,</p>
+            <p class="mb-0"><strong>CQMED</strong></p>
+            <p class="mb-0">UNICAMP</p>
+          </div>
+        
           <div class="form-check mb-4">
             <input class="form-check-input" type="checkbox" id="accept_terms" name="accept_terms" required>
             <label class="form-check-label" for="accept_terms">

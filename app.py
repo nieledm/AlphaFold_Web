@@ -269,13 +269,18 @@ def termos_de_uso():
         return redirect(url_for('register'))
     
     if request.method == 'POST':
-        if request.form.get('accept_terms'):
+        # Verifica se TODOS os checkboxes foram marcados
+        accept_terms = request.form.get('accept_terms') == 'on'
+        accept_alphafold = request.form.get('accept_alphafold') == 'on'
+        accept_detic = request.form.get('accept_detic') == 'on'
+        
+        if accept_terms and accept_alphafold and accept_detic:
             session['terms_accepted'] = True
             session.modified = True
             return redirect(url_for('register'))
         else:
-            session.clear()
-            return redirect(url_for('login'))
+            flash('Você deve aceitar todos os termos para continuar.', 'error')
+            return redirect(url_for('termos_de_uso')) 
     
     return render_template('termo_de_uso.html')
 
