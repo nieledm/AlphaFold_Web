@@ -1,0 +1,61 @@
+.top-spacing-reduced {
+    margin-top: -2rem;
+}
+
+.title-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 50px;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+
+
+.page-title {
+    font-weight: 700;
+    margin: 0;
+    line-height: 1.2;
+    color: #012e2d;
+    position: relative;
+}
+
+.title-highlight {
+    /* font-size: 1.8rem; */
+    display: block;
+    color: #016867;
+}
+
+
+.login-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 2rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid rgba(1, 104, 103, 0.2);
+}
+
+.login-title {
+    font-weight: 700;
+    margin: 0;
+    line-height: 1.2;
+    color: #012e2d;
+    position: relative;
+}
+
+.login-highlight {
+    /* font-size: 1.8rem; */
+    display: block;
+    color: #016867;
+}
+
+.login-title::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -0.5rem;
+    width: 50px;
+    height: 3px;
+    background: linear-gradient(90deg, #07b4b1, transparent);
+}

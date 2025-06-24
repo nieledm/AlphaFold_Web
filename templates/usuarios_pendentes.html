@@ -8,11 +8,11 @@
         <td class="text-center">
             <div class="d-flex justify-content-center gap-2">
                 <!-- Formulário para ativar o usuário -->
-                <form method="POST" action="{{ url_for('aprovar_usuario', user_id=user[0]) }}">
+                <form method="POST" action="{{ url_for('admins.aprovar_usuario', user_id=user[0]) }}">
                     <button type="submit" class="btn-sm btn-uniform">Ativar</button>
                 </form>
                 <!-- Formulário para excluir o usuário -->
-                <form method="POST" action="{{ url_for('excluir_usuario', user_id=user[0]) }}" onsubmit="return confirm('Tem certeza que deseja excluir este usuário?');">
+                <form method="POST" action="{{ url_for('admins.excluir_usuario', user_id=user[0]) }}" onsubmit="return confirm('Tem certeza que deseja excluir este usuário?');">
                     <button type="submit" class="btn btn-danger btn-sm btn-uniform">Excluir</button>
                 </form>
             </div>

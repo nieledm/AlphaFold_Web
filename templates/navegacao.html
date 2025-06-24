@@ -7,13 +7,13 @@
        </button>
        <ul class="dropdown-menu" aria-labelledby="dropdownMenuDashboard">
            <li>
-               <a href="{{ url_for('dashboard') }}" 
+               <a href="{{ url_for('users.dashboard') }}" 
                   class="dropdown-item {% if active_page == 'dashboard' %}active{% endif %}">
                    Dashboard
                </a>
            </li>
            <li>
-               <a href="{{ url_for('builder_json_form') }}" 
+               <a href="{{ url_for('users.builder_json_form') }}" 
                   class="dropdown-item {% if active_page == 'json_builder' %}active{% endif %}">
                    Json Builder
                </a>
@@ -28,25 +28,25 @@
             </button>
             <ul class="dropdown-menu" aria-labelledby="dropdownMenuUsuarios">
                 <li>
-                    <a href="{{ url_for('usuarios_ativos') }}" 
+                    <a href="{{ url_for('admins.usuarios_ativos') }}" 
                         class="dropdown-item {% if active_page == 'ativos' %}active{% endif %}">
                         Usuários Ativos
                     </a>
                 </li>
                 <li>
-                    <a href="{{ url_for('usuarios_pendentes') }}" 
+                    <a href="{{ url_for('admins.usuarios_pendentes') }}" 
                         class="dropdown-item {% if active_page == 'pendentes' %}active{% endif %}">
                         Usuários Pendentes
                     </a>
                 </li>
                 <li>
-                    <a href="{{ url_for('usuarios_desativados') }}" 
+                    <a href="{{ url_for('admins.usuarios_desativados') }}" 
                         class="dropdown-item {% if active_page == 'desativados' %}active{% endif %}">
                         Usuários Desativados
                     </a>
                 </li>
                 <li>
-                    <a href="{{ url_for('view_logs') }}" 
+                    <a href="{{ url_for('logs.view_logs') }}" 
                         class="dropdown-item {% if active_page == 'logs' %}active{% endif %}">
                         Visualizar Logs
                     </a>
@@ -54,7 +54,7 @@
             </ul>
         </div>
     {% endif %}
-    <a href="{{ url_for('sobre') }}" class="btn btn-icon btn-nav {% if active_page == 'sobre' %}active{% endif %}" title="Sobre">
+    <a href="{{ url_for('users.sobre') }}" class="btn btn-icon btn-nav {% if active_page == 'sobre' %}active{% endif %}" title="Sobre">
         i
     </a>
 </div>

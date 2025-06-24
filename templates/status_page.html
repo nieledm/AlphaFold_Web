@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>Status do Servidor</h1>
+
+<h3>Recursos</h3>
+{% if status.error %}
+    <p style="color:red;">Erro: {{ status.error }}</p>
+{% else %}
+    <p><strong>CPU:</strong></p><pre>{{ status.cpu }}</pre>
+    <p><strong>Memória:</strong></p><pre>{{ status.mem }}</pre>
+    <p><strong>GPU:</strong></p><pre>{{ status.gpu }}</pre>
+    <p><strong>Disco:</strong></p><pre>{{ status.disk }}</pre>
+{% endif %}
+
+<h3>Status dos Jobs</h3>
+<p>Jobs rodando: <strong>{{ running_jobs }}</strong></p>
+<p>Jobs na fila: <strong>{{ pending_jobs }}</strong></p>
+
+{% if is_admin %}
+    <h3>Fila de Espera</h3>
+    {% if queue_jobs %}
+        <table border="1" cellpadding="6">
+            <thead>
+                <tr>
+                    <th>Usuário</th>
+                    <th>Nome do Job</th>
+                    <th>Data/Hora</th>
+                    <th>Ação</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for job in queue_jobs %}
+                    <tr>
+                        <td>{{ job.name }}</td>
+                        <td>{{ job.base_name }}</td>
+                        <td>{{ job.created_at }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('monitor.cancel_job', base_name=job.base_name) }}">
+                                <button type="submit" onclick="return confirm('Cancelar este job?')">Cancelar</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Nenhum job na fila.</p>
+    {% endif %}
+{% endif %}
+{% endblock %}

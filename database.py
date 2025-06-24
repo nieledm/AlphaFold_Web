@@ -64,6 +64,13 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
+def get_user_by_email(email):
+    """Busca um usuário pelo e-mail"""
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute('SELECT * FROM users WHERE email = ?', (email,))
+        return c.fetchone()
+
 # Opcional: Se você quiser executar isso diretamente para criar o DB pela primeira vez
 # if __name__ == '__main__':
 #     init_db()

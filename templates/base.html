@@ -22,7 +22,8 @@
   {% block css %}{% endblock %}
 </head>
 <body>
-  {% if request.endpoint not in ['login', 'register', 'termos_de_uso'] %}
+
+  {% if request.endpoint not in ['aut.login', 'aut.register', 'aut.termos_de_uso', 'aut.esqueci_senha'] %}
     <div class="header">
       <!-- Logo do laboratório -->
       <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo CQMED" class="logo" style="width: 120px; height: 40px; margin-right: 8px;">
@@ -30,7 +31,7 @@
       <!-- Informações do usuário e botão de logout -->
       <div class="user-info d-flex align-items-center">
         <span class="usuario-logado me-3">{{ nome_usuario }}</span>
-        <a href="{{ url_for('logout') }}" title="Logout" class="btn d-flex align-items-center">
+        <a href="{{ url_for('aut.logout') }}" title="Logout" class="btn d-flex align-items-center">
           <img src="{{ url_for('static', filename='images/logout.png') }}" alt="Sair" style="width: 40px; height: 40px; margin-right: 8px;">
         </a>
       </div>
