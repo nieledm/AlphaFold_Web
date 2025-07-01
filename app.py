@@ -28,9 +28,6 @@ app.register_blueprint(admins_bp)
 from apps.users_rotas.views import users_bp
 app.register_blueprint(users_bp)
 
-print(">>> BluePrints carregados")
-print([rule.rule for rule in app.url_map.iter_rules()])
-
 # ==============================================================
 # FUNÇÕES DE CONTEXTO E INICIALIZAÇÃO
 # ==============================================================
