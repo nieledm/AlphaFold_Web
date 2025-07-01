@@ -3,6 +3,9 @@ from database import get_db_connection, init_db
 
 from config import app
 
+from config import ALPHAFOLD_SSH_HOST, ALPHAFOLD_SSH_PORT, ALPHAFOLD_SSH_USER
+
+
 # ==============================================================
 # BLUE PRINTS
 # ==============================================================
@@ -47,4 +50,14 @@ def check_status():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=5055)
+
+    print("Testando conexão SSH...")
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    try:
+        ssh.connect(ALPHAFOLD_SSH_HOST, port=ALPHAFOLD_SSH_PORT, username=ALPHAFOLD_SSH_USER)
+        print("Conexão SSH bem-sucedida!")
+        ssh.close()
+    except Exception as e:
+        print("Erro ao conectar via SSH:", e)
 
