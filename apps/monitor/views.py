@@ -3,7 +3,8 @@ from database import get_db_connection
 from apps.logs.utils import log_action
 from .utils import get_system_status, get_job_counts, get_pending_jobs
 
-from . import monitor_bp
+from flask import Blueprint
+monitor_bp = Blueprint('monitor', __name__, template_folder='../../templates')
 
 @monitor_bp.route('/status')
 def status_page():

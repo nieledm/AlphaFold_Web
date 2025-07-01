@@ -16,9 +16,10 @@ from apps.autentication.utils import admin_required, login_required
 from config import ALPHAFOLD_SSH_HOST, ALPHAFOLD_SSH_PORT, ALPHAFOLD_SSH_USER, \
                  ALPHAFOLD_INPUT_BASE, ALPHAFOLD_OUTPUT_BASE, ALPHAFOLD_PARAMS, ALPHAFOLD_DB
 
-from .utils import run_alphafold_in_background, validar_json_input
+from .utils import run_alphafold_in_background
 
-from . import apf_bp
+from flask import Blueprint
+apf_bp = Blueprint('apf', __name__, template_folder='../../templates')
 
 # ==============================================================
 # ROTAS DO ALPHAFOLD (UPLOAD, PROCESSAMENTO E DOWNLOAD)

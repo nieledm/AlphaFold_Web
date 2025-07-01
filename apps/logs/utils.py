@@ -3,7 +3,7 @@ import sqlite3
 from datetime import datetime
 import pytz
 import time
-from database import get_db_connection, init_db, DATABASE
+from database import get_db_connection
 
 def log_action(user_id, action, details=None):
     """Registra uma ação no banco de dados de logs com retry."""

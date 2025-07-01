@@ -1,7 +1,8 @@
 from flask import render_template, redirect, url_for, flash,session
 from database import get_db_connection
 
-from . import users_bp
+from flask import Blueprint
+users_bp = Blueprint('users', __name__, template_folder='templates')
 
 # ==============================================================
 # ROTAS DE USUÁRIO

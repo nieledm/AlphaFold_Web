@@ -8,6 +8,9 @@ from apps.logs.utils import log_action
 
 from config import EMAIL_SENDER, EMAIL_PASSWORD
 
+from flask import Blueprint
+emails_bp = Blueprint('emails', __name__, template_folder='../../templates')
+
 # ==============================================================
 # FUNÇÕES DE E-MAIL
 # ==============================================================

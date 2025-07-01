@@ -4,10 +4,13 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from database import get_db_connection, get_user_by_email
 from apps.emails.utils import send_verification_email, send_admin_notification, send_email
 from apps.logs.utils import log_action
-from config import serializer
-
+from config import serializer, app
 from .utils import validar_email, validar_nome, validar_senha
-from .__init__ import aut_bp
+
+from flask import Blueprint
+aut_bp = Blueprint('aut', __name__, template_folder='../../templates')
+
+
 # ==============================================================
 # ROTAS DE AUTENTICAÇÃO
 # ==============================================================

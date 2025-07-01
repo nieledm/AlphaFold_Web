@@ -7,7 +7,9 @@ import zipfile
 from apps.autentication.utils import admin_required
                
 from .utils import log_action
-from .__init__ import logs_bp
+
+from flask import Blueprint
+logs_bp = Blueprint('logs', __name__, template_folder='../../templates')
 
 @logs_bp.route('/admin/view_logs', methods=['GET'])
 def view_logs():

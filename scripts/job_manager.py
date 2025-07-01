@@ -1,13 +1,11 @@
 import threading
 import time
 import paramiko
-import select
 from database import get_db_connection
 from config import ALPHAFOLD_SSH_HOST, ALPHAFOLD_SSH_PORT, ALPHAFOLD_SSH_USER, \
-                 ALPHAFOLD_INPUT_BASE, ALPHAFOLD_OUTPUT_BASE, ALPHAFOLD_PARAMS, ALPHAFOLD_DB, \
-                EMAIL_SENDER, EMAIL_PASSWORD, serializer
-from apps.logs import log_action
-from apps.emails import send_processing_complete_email
+                 ALPHAFOLD_INPUT_BASE, ALPHAFOLD_OUTPUT_BASE, ALPHAFOLD_PARAMS, ALPHAFOLD_DB
+from apps.logs.utils import log_action
+from apps.emails.utils import send_processing_complete_email
 
 import os
 import sys

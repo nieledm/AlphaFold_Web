@@ -5,12 +5,11 @@ from database import get_db_connection
 
 from apps.logs.utils import log_action
 from apps.autentication.utils import admin_required, login_required
-from config import ALPHAFOLD_SSH_HOST, ALPHAFOLD_SSH_PORT, ALPHAFOLD_SSH_USER, \
-                 ALPHAFOLD_INPUT_BASE, ALPHAFOLD_OUTPUT_BASE, ALPHAFOLD_PARAMS, ALPHAFOLD_DB, \
-                EMAIL_SENDER, EMAIL_PASSWORD, serializer, app
+from config import ALPHAFOLD_INPUT_BASE, ALPHAFOLD_OUTPUT_BASE
 from apps.emails.utils import send_activation_email
 
-from . import admins_bp
+from flask import Blueprint
+admins_bp = Blueprint('admins', __name__, template_folder='templates')
 
 # ==============================================================
 # ROTAS DE ADMINISTRAÇÃO

@@ -70,8 +70,3 @@ def get_user_by_email(email):
         c = conn.cursor()
         c.execute('SELECT * FROM users WHERE email = ?', (email,))
         return c.fetchone()
-
-# Opcional: Se você quiser executar isso diretamente para criar o DB pela primeira vez
-# if __name__ == '__main__':
-#     init_db()
-#     print("Banco de dados inicializado.")
