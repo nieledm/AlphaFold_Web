@@ -19,10 +19,10 @@ from email.mime.text import MIMEText
 from database import get_db_connection
 
 # ==============================================================
-# JOB STATUS
+# JOB MANAGER
 # ==============================================================
 
-def get_system_status(ssh_host, ssh_port, ssh_user):
+def get_system_status():
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.connect(ALPHAFOLD_SSH_HOST, port=ALPHAFOLD_SSH_PORT, username=ALPHAFOLD_SSH_USER)
