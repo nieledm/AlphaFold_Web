@@ -1,3 +1,7 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
 <h1>Status do Servidor</h1>
 
 {% if error %}
@@ -67,3 +71,4 @@
 {% else %}
     <p>Nenhum job na fila.</p>
 {% endif %}
+{% endblock %}
