@@ -25,7 +25,11 @@ from database import get_db_connection
 def get_system_status():
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh.connect(ALPHAFOLD_SSH_HOST, port=ALPHAFOLD_SSH_PORT, username=ALPHAFOLD_SSH_USER)
+    try:
+        ssh.connect(ALPHAFOLD_SSH_HOST, port=ALPHAFOLD_SSH_PORT, username=ALPHAFOLD_SSH_USER)
+        print("Conexão SSH bem-sucedida!")
+    except Exception as e:
+        print("Erro ao conectar via SSH:", e)
 
     status = {}
 
@@ -35,17 +39,6 @@ def get_system_status():
         "gpu": "nvidia-smi --query-gpu=name,memory.total,memory.free,utilization.gpu --format=csv,noheader,nounits",
         "disk": "df -h /str1"
     }
-
-    print("Testando conexão SSH...")
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    try:
-        ssh.connect(ALPHAFOLD_SSH_HOST, port=ALPHAFOLD_SSH_PORT, username=ALPHAFOLD_SSH_USER)
-        print("Conexão SSH bem-sucedida!")
-        ssh.close()
-    except Exception as e:
-        print("Erro ao conectar via SSH:", e)
-
 
     for key, cmd in commands.items():
         try:
