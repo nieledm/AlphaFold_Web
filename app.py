@@ -4,6 +4,7 @@ from database import get_db_connection, init_db
 from config import app
 
 from config import ALPHAFOLD_SSH_HOST, ALPHAFOLD_SSH_PORT, ALPHAFOLD_SSH_USER
+import paramiko
 
 
 # ==============================================================
