@@ -22,14 +22,10 @@ from database import get_db_connection
 # JOB MANAGER
 # ==============================================================
 
-def get_system_status():
+def get_system_status(host, port, user):
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    try:
-        ssh.connect(ALPHAFOLD_SSH_HOST, port=ALPHAFOLD_SSH_PORT, username=ALPHAFOLD_SSH_USER)
-        print("Conexão SSH bem-sucedida!")
-    except Exception as e:
-        print("Erro ao conectar via SSH:", e)
+    ssh.connect(host, port=port, username=user)
 
     status = {}
 
@@ -49,6 +45,8 @@ def get_system_status():
             status[key] = f"Erro: {e}"
 
     ssh.close()
+    return status
+
     return status
 
 def get_job_counts():

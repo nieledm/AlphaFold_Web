@@ -10,23 +10,9 @@ from config import ALPHAFOLD_SSH_HOST, ALPHAFOLD_SSH_PORT, ALPHAFOLD_SSH_USER
 import paramiko
 
 @monitor_bp.route('/status')
-def status_page():
-    
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+def status_page():   
     try:
-        ssh.connect(ALPHAFOLD_SSH_HOST, port=ALPHAFOLD_SSH_PORT, username=ALPHAFOLD_SSH_USER)
-        print("Conexão SSH bem-sucedida!")
-    except Exception as e:
-        print("Erro ao conectar via SSH:", e)
-
-    cfg = current_app.config
-    try:
-        system_status = get_system_status(
-            cfg['ALPHAFOLD_SSH_HOST'],
-            cfg['ALPHAFOLD_SSH_PORT'],
-            cfg['ALPHAFOLD_SSH_USER']
-        )
+        system_status = get_system_status(ALPHAFOLD_SSH_HOST, ALPHAFOLD_SSH_PORT, ALPHAFOLD_SSH_USER)
     except Exception as e:
         system_status = {"error": str(e)}
 
