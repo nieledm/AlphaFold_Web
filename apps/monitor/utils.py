@@ -47,7 +47,45 @@ def get_system_status(host, port, user):
     ssh.close()
     return status
 
-    return status
+def parse_system_status(raw_status):
+    parsed = {}
+
+    parsed['cpu'] = raw_status.get('cpu', 'N/D')
+
+    mem_raw = raw_status.get('mem', '')
+    mem_lines = mem_raw.split('\n')
+    parsed['mem'] = mem_lines
+
+    gpu_raw = raw_status.get('gpu', '')
+    gpu_lines = gpu_raw.split('\n')
+    gpu_parsed = []
+    for line in gpu_lines:
+        parts = [p.strip() for p in line.split(',')]
+        if len(parts) == 4:
+            gpu_parsed.append({
+                'name': parts[0],
+                'memory_total': parts[1],
+                'memory_free': parts[2],
+                'utilization': parts[3]
+            })
+    parsed['gpu'] = gpu_parsed
+
+    disk_raw = raw_status.get('disk', '')
+    disk_lines = disk_raw.split('\n')
+    disk_header = []
+    disk_rows = []
+    for i, line in enumerate(disk_lines):
+        cols = line.split()
+        if i == 0:
+            disk_header = cols
+        else:
+            disk_rows.append(cols)
+    parsed['disk'] = {
+        'header': disk_header,
+        'rows': disk_rows
+    }
+
+    return parsed
 
 def get_job_counts():
     conn = get_db_connection()

@@ -13,8 +13,6 @@ def dashboard():
     if 'user_id' not in session:
         flash('Por favor, faça login primeiro.', 'warning')
         return redirect(url_for('aut.login'))
-
-    print("Sessão após login:", dict(session))
     
     conn = get_db_connection()
     uploads = conn.execute(
