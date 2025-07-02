@@ -66,7 +66,7 @@ def parse_system_status(raw_status):
                 freq = float(line.split(':')[1].strip())
                 cpu_info['frequency'] = f"{freq/1000:.2f} GHz"
         
-        # Parse CPU usage - CORREÇÃO AQUI
+        # Parse CPU usage
         for line in cpu_lines:
             if '%Cpu(s):' in line or 'Cpu(s):' in line:
                 try:
@@ -80,7 +80,6 @@ def parse_system_status(raw_status):
         
         parsed['cpu'] = cpu_info
         
-        # Restante do código permanece igual...
         # Parse Memória
         mem_raw = raw_status.get('mem', '')
         mem_lines = mem_raw.split('\n')

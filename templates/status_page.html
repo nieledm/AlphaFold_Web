@@ -21,8 +21,7 @@
                 <div class="card-body">
                     {% if status.cpu %}
                         <div class="progress mb-3">
-                            <div class="progress-bar bg-success" role="progressbar" 
-                                aria-valuenow="{{ status.cpu.usage }}" 
+                            <div id="cpu-progress" class="progress-bar bg-success" role="progressbar" 
                                 aria-valuemin="0" 
                                 aria-valuemax="100">
                                 {{ status.cpu.usage }}%
@@ -58,12 +57,12 @@
                 <div class="card-body">
                     {% if status.mem %}
                         <div class="progress mb-3">
-                            <div class="progress-bar bg-warning" role="progressbar" 
-                                aria-valuenow="{{ status.mem.percent_used }}" 
-                                aria-valuemin="0" 
+                            <div id="mem-progress" class="progress-bar bg-warning" role="progressbar"
+                                aria-valuemin="0"
                                 aria-valuemax="100">
-                                {{ status.mem.percent_used }}% usado
+                                {{ status.mem.percent_used }}%
                             </div>
+                        </div>
                         </div>
                         <ul class="list-group">
                             <li class="list-group-item d-flex justify-content-between align-items-center">
@@ -106,17 +105,15 @@
                         <td>{{ gpu.memory_total }} MiB</td>
                         <td>{{ gpu.memory_free }} MiB</td>
                         <td>
-                            <div class="progress gpu-progress">
-                                <div class="progress-bar" 
-                                    role="progressbar" 
-                                    data-utilization="{{ gpu.utilization }}"
-                                    aria-valuenow="{{ gpu.utilization }}" 
-                                    aria-valuemin="0" 
+                            <div class="progress">
+                                <div id="gpu-progress-{{ loop.index }}" class="progress-bar" 
+                                    role="progressbar"
+                                    aria-valuemin="0"
                                     aria-valuemax="100">
                                     {{ gpu.utilization }}%
                                 </div>
-                            </div>                            
-                        </td>
+                            </div>
+                        </td>                            
                     </tr>
                 {% endfor %}
                 </tbody>
@@ -209,4 +206,8 @@
     </div>
 </div>
 
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/status.js') }}"></script>
 {% endblock %}
