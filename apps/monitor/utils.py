@@ -36,6 +36,17 @@ def get_system_status():
         "disk": "df -h /str1"
     }
 
+    print("Testando conexão SSH...")
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    try:
+        ssh.connect(ALPHAFOLD_SSH_HOST, port=ALPHAFOLD_SSH_PORT, username=ALPHAFOLD_SSH_USER)
+        print("Conexão SSH bem-sucedida!")
+        ssh.close()
+    except Exception as e:
+        print("Erro ao conectar via SSH:", e)
+
+
     for key, cmd in commands.items():
         try:
             stdin, stdout, _ = ssh.exec_command(cmd)

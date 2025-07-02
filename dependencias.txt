@@ -5,3 +5,10 @@ Para obter data e hora local
     pip install pytz
 
 pip install requests
+
+systemctl list-units --type=service --state=running | grep meuapp
+
+sudo systemctl stop meuapp.service
+sudo systemctl start meuapp.service
+sudo systemctl restart meuapp.service
+sudo systemctl status meuapp.service
