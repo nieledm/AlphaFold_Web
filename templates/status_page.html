@@ -1,74 +1,212 @@
 {% extends 'base.html' %}
 
+{% block css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/status.css') }}">
+{% endblock %}
+
 {% block content %}
 
 <h1>Status do Servidor</h1>
 
 {% if error %}
-    <p style="color:red;">Erro: {{ error }}</p>
+    <div class="alert alert-danger">Erro: {{ error }}</div>
 {% else %}
-    <h3>CPU:</h3>
-    <pre>{{ status.cpu }}</pre>
+    <div class="row">
+        <!-- Seção CPU -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="card-title">CPU</h3>
+                </div>
+                <div class="card-body">
+                    {% if status.cpu %}
+                        <div class="progress mb-3">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                aria-valuenow="{{ status.cpu.usage }}" 
+                                aria-valuemin="0" 
+                                aria-valuemax="100">
+                                {{ status.cpu.usage }}%
+                            </div>
+                        </div>
+                        <ul class="list-group">
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Modelo
+                                <span class="badge bg-primary rounded-pill">{{ status.cpu.model }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Núcleos
+                                <span class="badge bg-primary rounded-pill">{{ status.cpu.cores }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Frequência
+                                <span class="badge bg-primary rounded-pill">{{ status.cpu.frequency }}</span>
+                            </li>
+                        </ul>
+                    {% else %}
+                        <p class="text-muted">Informações da CPU não disponíveis</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
 
-    <h3>Memória:</h3>
-    <pre>
-    {% for line in status.mem %}
-{{ line }}
-    {% endfor %}
-    </pre>
+        <!-- Seção Memória -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h3 class="card-title">Memória</h3>
+                </div>
+                <div class="card-body">
+                    {% if status.mem %}
+                        <div class="progress mb-3">
+                            <div class="progress-bar bg-warning" role="progressbar" 
+                                aria-valuenow="{{ status.mem.percent_used }}" 
+                                aria-valuemin="0" 
+                                aria-valuemax="100">
+                                {{ status.mem.percent_used }}% usado
+                            </div>
+                        </div>
+                        <ul class="list-group">
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Total
+                                <span class="badge bg-info rounded-pill">{{ status.mem.total }} GB</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Usado
+                                <span class="badge bg-warning rounded-pill">{{ status.mem.used }} GB</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Livre
+                                <span class="badge bg-success rounded-pill">{{ status.mem.free }} GB</span>
+                            </li>
+                        </ul>
+                    {% else %}
+                        <p class="text-muted">Informações de memória não disponíveis</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
 
-    <h3>GPU:</h3>
-    <table class="table table-sm table-bordered">
-        <thead>
-            <tr>
-                <th>Nome</th><th>Memória Total (MiB)</th><th>Memória Livre (MiB)</th><th>Utilização (%)</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for gpu in status.gpu %}
-            <tr>
-                <td>{{ gpu.name }}</td>
-                <td>{{ gpu.memory_total }}</td>
-                <td>{{ gpu.memory_free }}</td>
-                <td>{{ gpu.utilization }}</td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-
-    <h3>Disco:</h3>
-    <table class="table table-sm table-bordered">
-        <thead>
-            <tr>
-            {% for col in status.disk.header %}
-                <th>{{ col }}</th>
-            {% endfor %}
-            </tr>
-        </thead>
-        <tbody>
-            {% for row in status.disk.rows %}
-                <tr>
-                {% for item in row %}
-                    <td>{{ item }}</td>
+    <!-- Seção GPU -->
+    <div class="card mb-4">
+        <div class="card-header bg-secondary text-white">
+            <h3 class="card-title">GPU</h3>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped table-hover">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>Nome</th><th>Memória Total</th><th>Memória Livre</th><th>Utilização</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for gpu in status.gpu %}
+                    <tr>
+                        <td>{{ gpu.name }}</td>
+                        <td>{{ gpu.memory_total }} MiB</td>
+                        <td>{{ gpu.memory_free }} MiB</td>
+                        <td>
+                            <div class="progress gpu-progress">
+                                <div class="progress-bar" 
+                                    role="progressbar" 
+                                    data-utilization="{{ gpu.utilization }}"
+                                    aria-valuenow="{{ gpu.utilization }}" 
+                                    aria-valuemin="0" 
+                                    aria-valuemax="100">
+                                    {{ gpu.utilization }}%
+                                </div>
+                            </div>                            
+                        </td>
+                    </tr>
                 {% endfor %}
-                </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Seção Disco -->
+    <div class="card mb-4">
+        <div class="card-header bg-dark text-white">
+            <h3 class="card-title">Armazenamento</h3>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped table-hover">
+                <thead class="thead-dark">
+                    <tr>
+                    {% for col in status.disk.header %}
+                        <th>{{ col }}</th>
+                    {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in status.disk.rows %}
+                        <tr>
+                        {% for item in row %}
+                            <td>{{ item }}</td>
+                        {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 {% endif %}
 
-<h3>Status dos Jobs</h3>
-<p>Jobs rodando: <strong>{{ running_jobs }}</strong></p>
-<p>Jobs na fila: <strong>{{ pending_jobs }}</strong></p>
+<!-- Seção Jobs -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h3 class="card-title">Status dos Jobs</h3>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-6">
+                        <div class="card bg-light mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title">Em Execução</h5>
+                                <p class="card-text display-4">{{ running_jobs }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-light mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title">Na Fila</h5>
+                                <p class="card-text display-4">{{ pending_jobs }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <h3 class="card-title">Fila de Espera</h3>
+            </div>
+            <div class="card-body">
+                {% if queue_jobs %}
+                    <div class="list-group">
+                    {% for job in queue_jobs %}
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">Job #{{ loop.index }}</h6>
+                                <small>{{ job.submission_time }}</small>
+                            </div>
+                            <p class="mb-1">{{ job.user }} - {{ job.name }}</p>
+                            <small>Prioridade: {{ job.priority }}</small>
+                        </a>
+                    {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted">Nenhum job na fila.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
 
-<h3>Fila de Espera</h3>
-{% if queue_jobs %}
-    <ul>
-    {% for job in queue_jobs %}
-        <li>{{ job }}</li>
-    {% endfor %}
-    </ul>
-{% else %}
-    <p>Nenhum job na fila.</p>
-{% endif %}
 {% endblock %}

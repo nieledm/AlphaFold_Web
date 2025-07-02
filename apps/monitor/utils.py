@@ -49,13 +49,53 @@ def get_system_status(host, port, user):
 
 def parse_system_status(raw_status):
     parsed = {}
-
-    parsed['cpu'] = raw_status.get('cpu', 'N/D')
-
+    
+    # Parse CPU
+    cpu_raw = raw_status.get('cpu', '')
+    cpu_lines = cpu_raw.split('\n')
+    cpu_info = {}
+    
+    # Exemplo de parsing para comandos como lscpu
+    for line in cpu_lines:
+        if 'Model name:' in line:
+            cpu_info['model'] = line.split(':')[1].strip()
+        elif 'CPU(s):' in line:
+            cpu_info['cores'] = line.split(':')[1].strip()
+        elif 'CPU MHz:' in line or 'CPU max MHz:' in line:
+            freq = float(line.split(':')[1].strip())
+            cpu_info['frequency'] = f"{freq/1000:.2f} GHz"
+    
+    # Adicionar uso da CPU (precisa ser coletado do comando top/htop)
+    # Exemplo: "Cpu(s): 12.5%us,  6.2%sy,  0.0%ni, 80.1%id,  1.2%wa,  0.0%hi,  0.0%si,  0.0%st"
+    for line in cpu_lines:
+        if '%Cpu(s):' in line or 'Cpu(s):' in line:
+            usage = 100 - float(line.split(',')[3].replace('%id', '').strip())
+            cpu_info['usage'] = round(usage, 1)
+            break
+    
+    parsed['cpu'] = cpu_info
+    
+    # Parse Memória
     mem_raw = raw_status.get('mem', '')
     mem_lines = mem_raw.split('\n')
-    parsed['mem'] = mem_lines
-
+    mem_info = {}
+    
+    # Exemplo para saída do comando free -h
+    for line in mem_lines:
+        if 'Mem:' in line:
+            parts = line.split()
+            mem_info['total'] = parts[1]
+            mem_info['used'] = parts[2]
+            mem_info['free'] = parts[3]
+            # Calcular porcentagem usada
+            total = float(parts[1].replace('Gi', '').replace('Mi', ''))
+            used = float(parts[2].replace('Gi', '').replace('Mi', ''))
+            mem_info['percent_used'] = round((used / total) * 100, 1)
+            break
+    
+    parsed['mem'] = mem_info
+    
+    # Parse GPU (similar ao original)
     gpu_raw = raw_status.get('gpu', '')
     gpu_lines = gpu_raw.split('\n')
     gpu_parsed = []
@@ -66,10 +106,11 @@ def parse_system_status(raw_status):
                 'name': parts[0],
                 'memory_total': parts[1],
                 'memory_free': parts[2],
-                'utilization': parts[3]
+                'utilization': parts[3].replace('%', '')
             })
     parsed['gpu'] = gpu_parsed
-
+    
+    # Parse Disco (similar ao original)
     disk_raw = raw_status.get('disk', '')
     disk_lines = disk_raw.split('\n')
     disk_header = []
@@ -78,13 +119,13 @@ def parse_system_status(raw_status):
         cols = line.split()
         if i == 0:
             disk_header = cols
-        else:
+        elif cols:  # Ignorar linhas vazias
             disk_rows.append(cols)
     parsed['disk'] = {
         'header': disk_header,
         'rows': disk_rows
     }
-
+    
     return parsed
 
 def get_job_counts():

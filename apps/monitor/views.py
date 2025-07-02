@@ -44,7 +44,7 @@ def status_page():
                            running_jobs=running_jobs,
                            pending_jobs=pending_jobs,
                            queue_jobs=queue_jobs,
-                           is_admin=session.get("is_admin", False))
+                           is_admin=session.get("is_admin", False))  
 
 
 @monitor_bp.route('/cancel/<base_name>', methods=['POST'])
