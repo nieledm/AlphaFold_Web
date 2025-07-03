@@ -209,5 +209,11 @@
 {% endblock %}
 
 {% block scripts %}
+    <script>
+         /* eslint-disable */
+        window.cpuUsage = {{ status.cpu.usage | default(0) | tojson }};
+        window.memUsage = {{ status.mem.percent_used | default(0) | tojson }};
+        window.gpuData = {{ status.gpu | tojson }};
+    </script>
     <script src="{{ url_for('static', filename='js/status.js') }}"></script>
 {% endblock %}

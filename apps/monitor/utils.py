@@ -30,11 +30,13 @@ def get_system_status(host, port, user):
     status = {}
 
     commands = {
-        "cpu": "top -bn1 | grep 'Cpu(s)'",
+        "cpu_info": "lscpu",
+        "cpu_usage": "top -bn1 | grep 'Cpu(s)'",
         "mem": "free -h",
         "gpu": "nvidia-smi --query-gpu=name,memory.total,memory.free,utilization.gpu --format=csv,noheader,nounits",
         "disk": "df -h /str1"
     }
+
 
     for key, cmd in commands.items():
         try:
@@ -52,33 +54,36 @@ def parse_system_status(raw_status):
     
     try:
         # Parse CPU
-        cpu_raw = raw_status.get('cpu', '')
-        cpu_lines = cpu_raw.split('\n')
+        cpu_info_raw = raw_status.get('cpu_info', '')
+        cpu_lines = cpu_info_raw.split('\n')
         cpu_info = {}
         
         # Parse CPU info (model, cores, frequency)
         for line in cpu_lines:
             if 'Model name:' in line:
                 cpu_info['model'] = line.split(':')[1].strip()
-            elif 'CPU(s):' in line:
+            elif 'CPU(s):' in line and 'NUMA' not in line:
                 cpu_info['cores'] = line.split(':')[1].strip()
-            elif 'CPU MHz:' in line or 'CPU max MHz:' in line:
-                freq = float(line.split(':')[1].strip())
-                cpu_info['frequency'] = f"{freq/1000:.2f} GHz"
-        
-        # Parse CPU usage
-        for line in cpu_lines:
-            if '%Cpu(s):' in line or 'Cpu(s):' in line:
+            elif 'CPU max MHz:' in line:
                 try:
-                    # Extrai o valor de %id (tempo ocioso)
+                    freq = float(line.split(':')[1].strip())
+                    cpu_info['frequency'] = f"{freq/1000:.2f} GHz"
+                except:
+                    cpu_info['frequency'] = "N/D"
+
+        # Parse CPU usage
+        usage_raw = raw_status.get('cpu_usage', '')
+        for line in usage_raw.split('\n'):
+            if 'Cpu(s):' in line:
+                try:
                     idle = float(line.split(',')[3].strip().replace('%id', '').split()[0])
                     cpu_info['usage'] = round(100 - idle, 1)
-                except (IndexError, ValueError) as e:
-                    cpu_info['usage'] = 0.0  # Valor padrão em caso de erro
-                    print(f"Erro ao parsear uso da CPU: {e}")
+                except:
+                    cpu_info['usage'] = 0.0
                 break
-        
+
         parsed['cpu'] = cpu_info
+
         
         # Parse Memória
         mem_raw = raw_status.get('mem', '')
