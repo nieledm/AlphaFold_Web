@@ -6,7 +6,11 @@
 
 {% block content %}
 
-<h1>Status do Servidor</h1>
+<div class="title-container">
+    <h3 class="page-title">
+        <span class="title-highlight">Status do Servidor</span>
+    </h3>
+</div>            
 
 {% if error %}
     <div class="alert alert-danger">Erro: {{ error }}</div>
@@ -67,15 +71,15 @@
                         <ul class="list-group">
                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                 Total
-                                <span class="badge bg-info rounded-pill">{{ status.mem.total }} GB</span>
+                                <span class="badge bg-info rounded-pill">{{ status.mem.total }}</span>
                             </li>
                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                 Usado
-                                <span class="badge bg-warning rounded-pill">{{ status.mem.used }} GB</span>
+                                <span class="badge bg-warning rounded-pill">{{ status.mem.used }}</span>
                             </li>
                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                 Livre
-                                <span class="badge bg-success rounded-pill">{{ status.mem.free }} GB</span>
+                                <span class="badge bg-success rounded-pill">{{ status.mem.free }}</span>
                             </li>
                         </ul>
                     {% else %}

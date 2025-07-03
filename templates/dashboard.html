@@ -66,6 +66,10 @@
                         </form>
                     {% elif  upload['status'] == 'ERRO' %}
                         <i class="fas fa-exclamation-circle text-danger"></i> Erro
+                    {% elif  upload['status'] == 'CANCELADO' %}
+                        <i class="fas fa-ban text-danger"></i> Cancelado
+                    {% elif  upload['status'] == 'PENDENTE' %}
+                        <i class="fas fa-hourglass-half fa-spin text-warning"></i> Em espera...
                     {% else %}
                          <i class="fas fa-sync-alt fa-spin text-primary"></i> Processando...
                     {% endif %}

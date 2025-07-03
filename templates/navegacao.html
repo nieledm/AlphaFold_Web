@@ -1,6 +1,6 @@
 
 <div class="nav-container d-flex justify-content-start gap-3 mb-4 flex-wrap pt-3 pb-2 margens" style="z-index: 10;">
-   <!-- Dropdown 1: Dashboard / Json Builder -->
+   <!-- Dropdown 1: Dashboard / Json Builder / Status -->
    <div class="dropdown">
        <button class="btn btn-nav dropdown-toggle" type="button" id="dropdownMenuDashboard" data-bs-toggle="dropdown" aria-expanded="false">
            Dashboard
@@ -16,6 +16,12 @@
                <a href="{{ url_for('apf.builder_json_form') }}" 
                   class="dropdown-item {% if active_page == 'json_builder' %}active{% endif %}">
                    Json Builder
+               </a>
+           </li>
+           <li>
+               <a href="{{ url_for('monitor.status_page') }}" 
+                  class="dropdown-item {% if active_page == 'status' %}active{% endif %}">
+                   Status do Servidor 
                </a>
            </li>
        </ul>

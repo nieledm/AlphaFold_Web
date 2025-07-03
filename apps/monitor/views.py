@@ -45,7 +45,8 @@ def status_page():
                            pending_jobs=pending_jobs,
                            queue_jobs=queue_jobs,
                            is_admin=session.get("is_admin", False),
-                           nome_usuario=session.get('user_name', 'Usuário'))  
+                           nome_usuario=session.get('user_name', 'Usuário'),
+                           active_page='status')  
 
 
 @monitor_bp.route('/cancel/<base_name>', methods=['POST'])

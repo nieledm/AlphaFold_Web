@@ -28,7 +28,8 @@ apf_bp = Blueprint('apf', __name__, template_folder='../../templates')
 def builder_json_form():
     print("Usuário na sessão:", dict(session))
     return render_template('builder_json_form.html',
-                            nome_usuario=session.get('user_name', 'Usuário'))
+                            nome_usuario=session.get('user_name', 'Usuário'),
+                            active_page='json_builder')
 
 @apf_bp.route('/upload', methods=['POST'])
 def upload_file():
