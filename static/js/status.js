@@ -19,7 +19,7 @@ function initStatusPage() {
         window.gpuData.forEach((gpu, index) => {
             updateProgressBar(
                 `gpu-progress-${index + 1}`, 
-                gpu.utilization || 0, 
+                parseFloat(gpu.utilization || 0), 
                 gpu.utilization > 80 ? 'bg-danger' : 'bg-primary'
             );
         });

@@ -98,13 +98,12 @@ def parse_system_status(raw_status):
                     mem_info['used'] = parts[2]
                     mem_info['free'] = parts[3]
                     # Converter valores para cálculo da porcentagem
-                    total = float(parts[1].replace('Gi', '').replace('Mi', ''))
-                    used = float(parts[2].replace('Gi', '').replace('Mi', ''))
+                    total = convert_mem_unit(parts[1])
+                    used = convert_mem_unit(parts[2])
                     mem_info['percent_used'] = round((used / total) * 100, 1)
                 except (IndexError, ValueError) as e:
                     print(f"Erro ao parsear memória: {e}")
-                break
-        
+                break        
         parsed['mem'] = mem_info
         
         # Parse GPU (similar ao original)
@@ -119,7 +118,7 @@ def parse_system_status(raw_status):
                         'name': parts[0],
                         'memory_total': parts[1],
                         'memory_free': parts[2],
-                        'utilization': parts[3].replace('%', '')
+                        'utilization': float(parts[3].replace('%', '').strip() or 0.0)
                     })
                 except IndexError as e:
                     print(f"Erro ao parsear GPU: {e}")
@@ -146,6 +145,19 @@ def parse_system_status(raw_status):
         parsed['error'] = str(e)
     
     return parsed
+
+def convert_mem_unit(value):
+    try:
+        if 'Ti' in value:
+            return float(value.replace('Ti', '')) * 1024  # converte para Gi
+        elif 'Gi' in value:
+            return float(value.replace('Gi', ''))
+        elif 'Mi' in value:
+            return float(value.replace('Mi', '')) / 1024
+        else:
+            return float(value)
+    except:
+        return 0.0
 
 def get_job_counts():
     conn = get_db_connection()
