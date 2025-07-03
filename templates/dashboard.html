@@ -70,6 +70,8 @@
                         <i class="fas fa-ban text-danger"></i> Cancelado
                     {% elif  upload['status'] == 'PENDENTE' %}
                         <i class="fas fa-hourglass-half fa-spin text-warning"></i> Em espera...
+                    {% elif  upload['status'] == 'EXCLUIDO' %}
+                        <i class="fas fa-trash text-secondary"></i> Excluido
                     {% else %}
                          <i class="fas fa-sync-alt fa-spin text-primary"></i> Processando...
                     {% endif %}
