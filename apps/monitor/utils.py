@@ -182,7 +182,7 @@ def get_pending_jobs():
 # JOB MANAGER
 # ==============================================================
 
-MAX_CONTAINERS = 2
+MAX_CONTAINERS = 2 
 
 def get_running_container_count():
     ssh = paramiko.SSHClient()
@@ -196,13 +196,18 @@ def get_running_container_count():
 def process_next_job():
     conn = get_db_connection()
     job = conn.execute(
-        "SELECT * FROM uploads WHERE status = 'PENDENTE' ORDER BY created_at ASC LIMIT 1"
+        "SELECT * FROM uploads WHERE status = 'PENDENTE' "
+        "ORDER BY priority DESC, created_at ASC LIMIT 1"
     ).fetchone()
     conn.close()
 
     if not job:
-        return  # Nada a processar
+        return
 
+    # Verifica se o job foi cancelado antes de processar
+    if job['status'] == 'CANCELADO':
+        return
+    
     user_id = job["user_id"]
     base_name = job["base_name"]
     file_name = job["file_name"]

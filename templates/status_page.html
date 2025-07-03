@@ -183,31 +183,120 @@
         </div>
     </div>
     
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header bg-warning text-dark">
-                <h3 class="card-title">Fila de Espera</h3>
-            </div>
-            <div class="card-body">
-                {% if queue_jobs %}
-                    <div class="list-group">
-                    {% for job in queue_jobs %}
-                        <a href="#" class="list-group-item list-group-item-action">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1">Job #{{ loop.index }}</h6>
-                                <small>{{ job.submission_time }}</small>
-                            </div>
-                            <p class="mb-1">{{ job.user }} - {{ job.name }}</p>
-                            <small>Prioridade: {{ job.priority }}</small>
-                        </a>
-                    {% endfor %}
+    {% if session.get('is_admin') %}
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h3 class="card-title mb-0">Fila de Processamento</h3>
+                        <span class="badge bg-dark">
+                            Total: {{ pending_jobs|length + (queue_jobs|length if queue_jobs else 0) }}
+                        </span>
                     </div>
-                {% else %}
-                    <p class="text-muted">Nenhum job na fila.</p>
-                {% endif %}
+                </div>
+                <div class="card-body">
+                    <!-- Jobs Pendentes (em processamento ou na fila) -->
+                    <div class="mb-4">
+                        <h5 class="mb-3 border-bottom pb-2">Jobs Ativos</h5>
+                        
+                        {% if pending_jobs or queue_jobs %}
+                            <div class="list-group">
+                                {% for job in pending_jobs %}
+                                <div class="list-group-item list-group-item-action">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="me-3">
+                                            <h6 class="mb-1">{{ job.base_name }}</h6>
+                                            <small class="text-muted">
+                                                <i class="far fa-clock"></i> {{ job.created_at|format_datetime }}
+                                            </small>
+                                        </div>
+                                        <div class="text-end">
+                                            <span class="badge bg-{{ 'warning' if job.priority > 0 else 'secondary' }} mb-2">
+                                                <i class="fas fa-arrow-up"></i> {{ job.priority }}
+                                            </span>
+                                            <div class="btn-group btn-group-sm">
+                                                <form action="{{ url_for('monitor.increase_priority', base_name=job.base_name) }}" 
+                                                    method="POST" class="d-inline">
+                                                    <button type="submit" class="btn btn-outline-primary">
+                                                        <i class="fas fa-plus"></i> Prior.
+                                                    </button>
+                                                </form>
+                                                <form action="{{ url_for('monitor.cancel_job', base_name=job.base_name) }}" 
+                                                    method="POST" class="d-inline"
+                                                    onsubmit="return confirm('Cancelar este job?');">
+                                                    <button type="submit" class="btn btn-outline-danger">
+                                                        <i class="fas fa-ban"></i> Cancelar
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                                
+                                {% for job in queue_jobs %}
+                                <div class="list-group-item list-group-item-action">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="me-3">
+                                            <h6 class="mb-1">Job #{{ loop.index }} - {{ job.name }}</h6>
+                                            <small class="text-muted">
+                                                <i class="fas fa-user"></i> {{ job.user }} | 
+                                                <i class="far fa-clock"></i> {{ job.submission_time }}
+                                            </small>
+                                        </div>
+                                        <div>
+                                            <span class="badge bg-info mb-2">
+                                                <i class="fas fa-hourglass-half"></i> Na Fila
+                                            </span>
+                                            <span class="badge bg-{{ 'warning' if job.priority > 0 else 'secondary' }}">
+                                                Prioridade: {{ job.priority }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="alert alert-info mb-0">
+                                <i class="fas fa-info-circle"></i> Nenhum job ativo no momento.
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Status de Processamento -->
+                    <div class="mt-4">
+                        <h5 class="mb-3 border-bottom pb-2">Status do Sistema</h5>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h3 class="text-primary">{{ pending_jobs|length }}</h3>
+                                        <p class="mb-0"><i class="fas fa-cogs"></i> Processando</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h3 class="text-warning">{{ queue_jobs|length if queue_jobs else 0 }}</h3>
+                                        <p class="mb-0"><i class="fas fa-hourglass-half"></i> Na Fila</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h3 class="text-success">{{ MAX_CONTAINERS }}</h3>
+                                        <p class="mb-0"><i class="fas fa-server"></i> Containers Máx.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
+    {% endif %}
 </div>
 
 {% endblock %}

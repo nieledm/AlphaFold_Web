@@ -9,23 +9,6 @@ monitor_bp = Blueprint('monitor', __name__, template_folder='../../templates')
 from config import ALPHAFOLD_SSH_HOST, ALPHAFOLD_SSH_PORT, ALPHAFOLD_SSH_USER
 import paramiko
 
-# @monitor_bp.route('/status')
-# def status_page():   
-#     try:
-#         system_status = get_system_status(ALPHAFOLD_SSH_HOST, ALPHAFOLD_SSH_PORT, ALPHAFOLD_SSH_USER)
-#     except Exception as e:
-#         system_status = {"error": str(e)}
-
-#     running_jobs, pending_jobs = get_job_counts()
-#     queue_jobs = get_pending_jobs() if session.get("is_admin") else []
-
-#     return render_template('status_page.html',
-#                            status=system_status,
-#                            running_jobs=running_jobs,
-#                            pending_jobs=pending_jobs,
-#                            queue_jobs=queue_jobs,
-#                            is_admin=session.get("is_admin", False))
-
 @monitor_bp.route('/status')
 def status_page():
     try:
@@ -62,4 +45,22 @@ def cancel_job(base_name):
 
     log_action(session.get("user_id"), "Job cancelado", base_name)
     flash(f"Job {base_name} cancelado.", "info")
+    return redirect(url_for('monitor.status_page'))
+
+@monitor_bp.route('/increase_priority/<base_name>', methods=['POST'])
+def increase_priority(base_name):
+    if not session.get('is_admin'):
+        flash("Acesso negado", "danger")
+        return redirect(url_for('monitor.status_page'))
+
+    conn = get_db_connection()
+    conn.execute(
+        "UPDATE uploads SET priority = priority + 1 WHERE base_name = ? AND status = 'PENDENTE'",
+        (base_name,)
+    )
+    conn.commit()
+    conn.close()
+
+    log_action(session.get("user_id"), "Prioridade aumentada", base_name)
+    flash(f"Prioridade do job {base_name} aumentada.", "info")
     return redirect(url_for('monitor.status_page'))
