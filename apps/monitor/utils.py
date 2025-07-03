@@ -203,10 +203,6 @@ def process_next_job():
 
     if not job:
         return
-
-    # Verifica se o job foi cancelado antes de processar
-    if job['status'] == 'CANCELADO':
-        return
     
     user_id = job["user_id"]
     base_name = job["base_name"]

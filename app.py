@@ -3,9 +3,20 @@ from database import get_db_connection, init_db
 
 from config import app
 
-from config import ALPHAFOLD_SSH_HOST, ALPHAFOLD_SSH_PORT, ALPHAFOLD_SSH_USER
-import paramiko
+from datetime import datetime
 
+# ==============================================================
+# DATA E HORÁRIO
+# ==============================================================
+
+def format_datetime(value, format='%Y-%m-%d %H:%M'):
+    if value is None:
+        return ''
+    if isinstance(value, str):
+        value = datetime.strptime(value, '%Y-%m-%d %H:%M:%S')
+    return value.strftime(format)
+
+app.jinja_env.filters['format_datetime'] = format_datetime
 
 # ==============================================================
 # BLUE PRINTS
