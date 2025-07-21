@@ -114,7 +114,7 @@
                                     role="progressbar"
                                     aria-valuemin="0"
                                     aria-valuemax="100">
-                                    {{ gpu.utilization }}%
+                                    {{ ((1 - (gpu.memory_free / gpu.memory_total)) * 100) | round(2) }}%
                                 </div>
                             </div>
                         </td>                            
@@ -174,7 +174,7 @@
                         <div class="card bg-light mb-3">
                             <div class="card-body">
                                 <h5 class="card-title">Na Fila</h5>
-                                <p class="card-text display-4">{{ pending_jobs_list }}</p>
+                                <p class="card-text display-4">{{ pending_jobs_list|length }}</p>
                             </div>
                         </div>
                     </div>
@@ -190,7 +190,7 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <h3 class="card-title mb-0">Fila de Processamento</h3>
                         <span class="badge bg-dark">
-                            Processando: {{ running_count  }} | Na fila: {{ pending_count  }} | Total: {{ running_count + pending_count }}
+                            Processando: Total: {{ running_count + queue_jobs|length if queue_jobs else 0 }}
                         </span>
                     </div>
                 </div>

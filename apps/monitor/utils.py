@@ -106,7 +106,7 @@ def parse_system_status(raw_status):
                 break        
         parsed['mem'] = mem_info
         
-        # Parse GPU (similar ao original)
+        # Parse GPU
         gpu_raw = raw_status.get('gpu', '')
         gpu_lines = gpu_raw.split('\n')
         gpu_parsed = []
