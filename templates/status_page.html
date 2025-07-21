@@ -293,11 +293,13 @@
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    <tr>
-                                                        <td>{{ job['base_name'] }}</td>
-                                                        <td>{{ job['name'] }} MiB</td>
-                                                        <td>{{ job['created_at'] }} MiB</td>
-                                                    </tr>
+                                                    {% for job in pending_jobs_list %}
+                                                        <tr>
+                                                            <td>{{ job['base_name'] }}</td>
+                                                            <td>{{ job['name'] }}</td>
+                                                            <td>{{ job['created_at'] }}</td>
+                                                        </tr>
+                                                    {% endfor %}
                                                 </tbody>
                                             </table>
                                         {% endif %}
