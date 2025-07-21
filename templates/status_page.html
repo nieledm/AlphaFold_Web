@@ -345,7 +345,14 @@
                                                                     method="POST" class="d-inline"
                                                                     onsubmit="return confirm('Cancelar job em execução?');">
                                                                     <button type="submit" class="btn btn-outline-danger btn-sm">
-                                                                        <i class="fas fa-ban"></i> Forçar Cancelamento
+                                                                        <i class="fas fa-ban"></i> Cancelar
+                                                                    </button>
+                                                                </form>
+                                                                <form action="{{ url_for('monitor.increase_priority', base_name=job.base_name) }}" 
+                                                                    method="POST" class="d-inline"
+                                                                    onsubmit="return confirm('Priorizar job?');">
+                                                                    <button type="submit" class="btn btn-outline-primary">
+                                                                        <i class="fas fa-plus"></i> Prior.
                                                                     </button>
                                                                 </form>
                                                             </td>
