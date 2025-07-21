@@ -189,9 +189,6 @@
                 <div class="card-header bg-warning text-dark">
                     <div class="d-flex justify-content-between align-items-center">
                         <h3 class="card-title mb-0">Fila de Processamento</h3>
-                        <span class="badge bg-dark">
-                            Processando: Total: {{ running_count + pending_count }}
-                        </span>
                     </div>
                 </div>
                 <div class="card-body">
@@ -283,8 +280,13 @@
                             <div class="col-md-4">
                                 <div class="card bg-light">
                                     <div class="card-body text-center">
-                                        <h3 class="text-warning">{{ queue_jobs|length if queue_jobs else 0 }}</h3>
+                                        <h3 class="text-warning">{{ pending_jobs_list|length }}</h3>
                                         <p class="mb-0"><i class="fas fa-hourglass-half"></i> Na Fila</p>
+                                        <ul>
+                                            {% for job in pending_jobs_list %}
+                                                <li>{{ job['base_name'] }} - {{ job['name'] }} - {{ job['created_at'] }}</li>
+                                            {% endfor %}
+                                        </ul>
                                     </div>
                                 </div>
                             </div>
