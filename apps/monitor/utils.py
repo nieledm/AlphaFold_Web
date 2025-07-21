@@ -195,7 +195,6 @@ def set_max_containers(new_value):
     conn.commit()
     conn.close()
 
-
 MAX_CONTAINERS = get_max_containers() 
 
 def get_running_container_count():

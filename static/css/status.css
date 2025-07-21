@@ -98,3 +98,11 @@
     border-left: 4px solid #ffc107;
     background-color: rgba(255, 193, 7, 0.1);
 }
+
+.box-input{
+border:0;
+background: transparent;
+text-align: center;
+box-shadow: none;
+text-shadow: none;
+}
