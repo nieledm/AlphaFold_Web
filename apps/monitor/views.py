@@ -1,7 +1,7 @@
-from flask import render_template, session, redirect, url_for, flash
+from flask import render_template, session, redirect, url_for, flash, request
 from database import get_db_connection
 from apps.logs.utils import log_action
-from .utils import get_system_status, get_job_counts, get_pending_jobs, parse_system_status
+from .utils import get_system_status, get_job_counts, get_pending_jobs, parse_system_status, get_max_containers, set_max_containers
 
 from flask import Blueprint
 monitor_bp = Blueprint('monitor', __name__, template_folder='../../templates')
@@ -22,19 +22,21 @@ def status_page():
     running_count, pending_count = get_job_counts()
     pending_jobs_list = get_pending_jobs() if session.get("is_admin") else []
     queue_jobs = []
+    MAX_CONTAINERS = get_max_containers()
 
     return render_template('status_page.html',
-                         status=status,
-                         error=raw_status.get('error'),
+                        status=status,
+                        error=raw_status.get('error'),
                         #  running_jobs=running_jobs,
                         #  pending_jobs=pending_jobs,
                         running_count=running_count,
-                         pending_count=pending_count,
-                         pending_jobs_list=pending_jobs_list,
-                         queue_jobs=queue_jobs, 
-                         is_admin=session.get("is_admin", False),
-                         nome_usuario=session.get('user_name', 'Usuário'),
-                         active_page='status') 
+                        pending_count=pending_count,
+                        pending_jobs_list=pending_jobs_list,
+                        queue_jobs=queue_jobs, 
+                        is_admin=session.get("is_admin", False),
+                        nome_usuario=session.get('user_name', 'Usuário'),
+                        max_containers=MAX_CONTAINERS,
+                        active_page='status') 
 
 @monitor_bp.route('/cancel/<base_name>', methods=['POST']) 
 def cancel_job(base_name):
@@ -93,4 +95,21 @@ def increase_priority(base_name):
 
     log_action(session.get("user_id"), "Prioridade aumentada", base_name)
     flash(f"Prioridade do job {base_name} aumentada.", "info")
+    return redirect(url_for('monitor.status_page'))
+
+@monitor_bp.route('/update_max_containers', methods=['POST'])
+def update_max_containers():
+    if not session.get("is_admin"):
+        flash("Acesso negado", "danger")
+        return redirect(url_for('monitor.status_page'))
+
+    try:
+        new_value = int(request.form.get("max_containers"))
+        if new_value < 1:
+            raise ValueError
+        set_max_containers(new_value)
+        flash("Valor atualizado com sucesso.", "success")
+    except:
+        flash("Valor inválido.", "danger")
+
     return redirect(url_for('monitor.status_page'))

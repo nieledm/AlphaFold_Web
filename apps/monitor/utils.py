@@ -182,7 +182,21 @@ def get_pending_jobs():
 # JOB MANAGER
 # ==============================================================
 
-MAX_CONTAINERS = 2 
+# Funções para ler e alterar a quantidade máxima de container
+def get_max_containers():
+    conn = get_db_connection()
+    row = conn.execute("SELECT value FROM config WHERE key = 'max_containers'").fetchone()
+    conn.close()
+    return int(row['value']) if row else 2
+
+def set_max_containers(new_value):
+    conn = get_db_connection()
+    conn.execute("UPDATE config SET value = ? WHERE key = 'max_containers'", (str(new_value),))
+    conn.commit()
+    conn.close()
+
+
+MAX_CONTAINERS = get_max_containers() 
 
 def get_running_container_count():
     ssh = paramiko.SSHClient()
