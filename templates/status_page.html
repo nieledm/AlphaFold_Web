@@ -282,11 +282,25 @@
                                     <div class="card-body text-center">
                                         <h3 class="text-warning">{{ pending_jobs_list|length }}</h3>
                                         <p class="mb-0"><i class="fas fa-hourglass-half"></i> Na Fila</p>
-                                        <ul>
-                                            {% for job in pending_jobs_list %}
-                                                <li>{{ job['base_name'] }} - {{ job['name'] }} - {{ job['created_at'] }}</li>
-                                            {% endfor %}
-                                        </ul>
+                                        
+                                        {% if pending_jobs_list|length > 0 }
+                                            <table class="table table-striped table-hover">
+                                                <thead class="thead-dark">
+                                                    <tr>
+                                                        <th>Arquivo</th>
+                                                        <th>Usuário</th>
+                                                        <th>Data de criação</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td>{{ job['base_name'] }}</td>
+                                                        <td>{{ job['name'] }} MiB</td>
+                                                        <td>{{ job['created_at'] }} MiB</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        {% endfor %}
                                     </div>
                                 </div>
                             </div>
