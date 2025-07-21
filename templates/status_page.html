@@ -269,27 +269,22 @@
                     <div class="mt-4">
                         <h5 class="mb-3 border-bottom pb-2">Status do Sistema</h5>
                         <div class="row">
+                            
+                            <!-- Processando -->
                             <div class="col-md-4">
                                 <div class="card bg-light">
                                     <div class="card-body text-center">
                                         <h3 class="text-primary">{{ running_count }}</h3>
                                         <p class="mb-0"><i class="fas fa-cogs"></i> Processando</p>
                                     </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="card bg-light">
-                                    <div class="card-body text-center">
-                                        <h3 class="text-warning">{{ pending_jobs_list|length }}</h3>
-                                        <p class="mb-0"><i class="fas fa-hourglass-half"></i> Na Fila</p>
-                                        
-                                        {% if pending_jobs_list|length > 0 %}
+                                    {% if running_count > 0 %}
                                             <table class="table table-striped table-hover">
                                                 <thead class="thead-dark">
                                                     <tr>
                                                         <th>Arquivo</th>
                                                         <th>Usuário</th>
                                                         <th>Data de criação</th>
+                                                        <th>Ação</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -298,6 +293,62 @@
                                                             <td>{{ job['base_name'] }}</td>
                                                             <td>{{ job['name'] }}</td>
                                                             <td>{{ job['created_at'] }}</td>
+                                                            <td>
+                                                                <form action="{{ url_for('monitor.force_cancel_job', base_name=job.base_name) }}" 
+                                                                    method="POST" class="d-inline"
+                                                                    onsubmit="return confirm('Cancelar job em espera?');">
+                                                                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                                        <i class="fas fa-ban"></i> Cancelamento
+                                                                    </button>
+                                                                </form>
+                                                                <form action="{{ url_for('monitor.increase_priority', base_name=job.base_name) }}" 
+                                                                    method="POST" class="d-inline"
+                                                                    onsubmit="return confirm('Priorizar job?');">
+                                                                    <button type="submit" class="btn btn-outline-primary">
+                                                                        <i class="fas fa-plus"></i> Prior.
+                                                                    </button>
+                                                                </form>
+                                                            </td>
+                                                        </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        {% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- Fila de espera -->
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h3 class="text-warning">{{ pending_jobs_list|length }}</h3>
+                                        <p class="mb-0"><i class="fas fa-hourglass-half"></i> Na Fila</p>
+                                        
+                                        {% if pending_jobs_list_list|length > 0 %}
+                                            <table class="table table-striped table-hover">
+                                                <thead class="thead-dark">
+                                                    <tr>
+                                                        <th>Arquivo</th>
+                                                        <th>Usuário</th>
+                                                        <th>Data de criação</th>
+                                                        <th>Ação</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for job in pending_jobs_list %}
+                                                        <tr>
+                                                            <td>{{ job['base_name'] }}</td>
+                                                            <td>{{ job['name'] }}</td>
+                                                            <td>{{ job['created_at'] }}</td>
+                                                            <td>
+                                                                <form action="{{ url_for('monitor.force_cancel_job', base_name=job.base_name) }}" 
+                                                                    method="POST" class="d-inline"
+                                                                    onsubmit="return confirm('Cancelar job em execução?');">
+                                                                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                                        <i class="fas fa-ban"></i> Forçar Cancelamento
+                                                                    </button>
+                                                                </form>
+                                                            </td>
                                                         </tr>
                                                     {% endfor %}
                                                 </tbody>

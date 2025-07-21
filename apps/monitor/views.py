@@ -38,6 +38,7 @@ def status_page():
 
 @monitor_bp.route('/cancel/<base_name>', methods=['POST']) 
 def cancel_job(base_name):
+    """Cancela jobs como usuário padrão"""
     if not session.get('is_admin'):
         flash("Acesso negado", "danger")
         return redirect(url_for('monitor.status_page'))
@@ -51,8 +52,33 @@ def cancel_job(base_name):
     flash(f"Job {base_name} cancelado.", "info")
     return redirect(url_for('monitor.status_page'))
 
+@monitor_bp.route('/force_cancel/<base_name>', methods=['POST'])
+def force_cancel_job(base_name):
+    """Cancela jobs como admin"""
+    if not session.get('is_admin'):
+        flash("Acesso negado", "danger")
+        return redirect(url_for('monitor.status_page'))
+
+    conn = get_db_connection()
+    job = conn.execute("SELECT * FROM uploads WHERE base_name = ? AND status = 'PROCESSANDO'", (base_name,)).fetchone()
+    
+    if not job:
+        flash("Job não encontrado ou não está em processamento.", "warning")
+        return redirect(url_for('monitor.status_page'))
+
+    # Marcar como CANCELADO à força
+    conn.execute("UPDATE uploads SET status = 'CANCELADO' WHERE base_name = ?", (base_name,))
+    conn.commit()
+    conn.close()
+
+    log_action(session.get("user_id"), "Cancelamento forçado", base_name)
+    flash(f"Job {base_name} cancelado à força.", "info")
+    return redirect(url_for('monitor.status_page'))
+
+
 @monitor_bp.route('/increase_priority/<base_name>', methods=['POST'])
 def increase_priority(base_name):
+    """Dá prioridade para algum job em espera"""
     if not session.get('is_admin'):
         flash("Acesso negado", "danger")
         return redirect(url_for('monitor.status_page'))
