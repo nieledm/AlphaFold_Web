@@ -33,7 +33,7 @@ def get_system_status(host, port, user):
         "cpu_info": "lscpu",
         "cpu_usage": "top -bn1 | grep 'Cpu(s)'",
         "mem": "free -h",
-        "gpu": "nvidia-smi --query-gpu=name,memory.total,memory.free,utilization.gpu --format=csv,noheader,nounits",
+        "gpu": "nvidia-smi --query-gpu=name,memory.total,memory.free,utilization.gpu,utilization.memory --format=csv,noheader,nounits",
         "disk": "df -h /str1"
     }
 
@@ -106,21 +106,21 @@ def parse_system_status(raw_status):
                 break        
         parsed['mem'] = mem_info
         
-        # Parse GPU
+        # Parse GPU atualizado
         gpu_raw = raw_status.get('gpu', '')
         gpu_lines = gpu_raw.split('\n')
         gpu_parsed = []
         for line in gpu_lines:
             parts = [p.strip() for p in line.split(',')]
-            if len(parts) == 4:
+            if len(parts) >= 5:
                 try:
                     gpu_parsed.append({
                         'name': parts[0],
-                        'memory_total': parts[1],
-                        'memory_free': parts[2],
-                        'utilization': float(parts[3].replace('%', '').strip() or 0.0)
+                        'memory_total': parts[1].replace(' MiB', '').strip(),
+                        'memory_free': parts[2].replace(' MiB', '').strip(),
+                        'utilization_memory': float(parts[4].replace('%', '').strip() or 0.0)
                     })
-                except IndexError as e:
+                except (IndexError, ValueError) as e:
                     print(f"Erro ao parsear GPU: {e}")
         parsed['gpu'] = gpu_parsed
         
