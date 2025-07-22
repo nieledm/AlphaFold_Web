@@ -132,9 +132,9 @@ def parse_system_status(raw_status):
         for i, line in enumerate(disk_lines):
             cols = line.split()
             if i == 0:
-                disk_header = cols
+                disk_header = cols[1:-1]  # Remove primeira (Filesystem) e última coluna (Mounted on)
             elif cols:
-                disk_rows.append(cols)
+                disk_rows.append(cols[1:-1]) # Remove primeira (Filesystem) e última coluna (Mounted on)
         parsed['disk'] = {
             'header': disk_header,
             'rows': disk_rows
