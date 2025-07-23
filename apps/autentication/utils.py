@@ -39,7 +39,7 @@ def validar_nome(nome):
     return len(nome.strip().split()) >= 2
 
 def validar_email(email):
-    dominios = ['unicamp', 'unesp', 'usp', 'fatec', 'unifesp', 'unb', 'ufrj', 'ufmg', 'ufrgs']
+    dominios = ['unicamp', 'unesp', 'usp', 'fatec', 'unifesp', 'unb', 'ufrj', 'ufmg', 'ufrgs', 'unc.edu']
     return any(d in email.lower() for d in dominios)
 
 def validar_senha(senha):
