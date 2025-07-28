@@ -26,7 +26,13 @@
   {% if request.endpoint not in ['aut.login', 'aut.register', 'aut.termos_de_uso', 'aut.esqueci_senha'] %}
     <div class="header">
       <!-- Logo do laboratório -->
-      <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo CQMED" class="logo" style="width: 120px; height: 40px; margin-right: 8px;">
+      <div class="d-flex align-items-center">
+        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo CQMED" class="logo" style="width: 120px; height: 40px; margin-right: 8px;">
+        <div class="ampersand-container">
+          <span class="stylish-ampersand">&</span>
+        </div>
+        <img src="{{ url_for('static', filename='images/logo-hor-black.png') }}" alt="Logo CQMED" class="logo" style="width: 120px; height: 40px; margin-right: 8px; margin-left: 10px;">
+      </div>
 
       <!-- Informações do usuário e botão de logout -->
       <div class="user-info d-flex align-items-center">

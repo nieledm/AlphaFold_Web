@@ -17,8 +17,12 @@
 </head>
 <body class="bg-light">
     <div class="container text-center mt-5">
-        <!-- Logo CQMED -->
-        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo CQMED" class="logo mb-4" style="max-width: 250px;">
+        <!-- Logo CQMED e LABEI -->
+        <div class="d-flex align-items-center justify-content-center">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo CQMED" style="max-width: 250px; height: auto; object-fit: contain;">
+            <span class="stylish-ampersand-avisos mx-3">&</span>
+            <img src="{{ url_for('static', filename='images/logo-hor-black.png') }}" alt="Logo CQMED" style="max-width: 150px; height: auto; object-fit: contain;  margin-left: 10px;">
+        </div>
 
         <!-- Mural de Aviso -->
         <div class="alert alert-info p-4" role="alert">
