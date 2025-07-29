@@ -12,6 +12,7 @@
 
 /* Estilos para os detalhes dos logs */
 .log-details {
+    min-width: 300px;
     max-width: 300px;
 }
 
@@ -20,7 +21,7 @@
     max-height: 3em;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal;
     vertical-align: middle;
 }
 

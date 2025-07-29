@@ -690,6 +690,3 @@ document.getElementById('jsonForm').addEventListener('submit', function (e) {
     }
     
 });
-
-
-
