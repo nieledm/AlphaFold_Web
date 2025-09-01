@@ -1,2 +1,9 @@
-# Ignorar o banco de dados
+# Ignorar banco de dados SQLite
 database.db
+
+# Ignorar arquivo de variáveis de ambiente
+.env
+
+# Ignorar arquivos pyc e __pycache__
+*.pyc
+__pycache__/

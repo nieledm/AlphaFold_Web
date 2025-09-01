@@ -1,6 +1,9 @@
 import paramiko
 import threading
 import time
+import shlex
+import pytz
+from datetime import datetime
 from database import get_db_connection
 from config import ALPHAFOLD_SSH_HOST, ALPHAFOLD_SSH_PORT, ALPHAFOLD_SSH_USER, \
                  ALPHAFOLD_INPUT_BASE, ALPHAFOLD_OUTPUT_BASE, ALPHAFOLD_PARAMS, ALPHAFOLD_DB
@@ -207,15 +210,49 @@ def get_running_container_count():
     return count
 
 def process_next_job():
+    tz = pytz.timezone("America/Sao_Paulo")
+    now_str = datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')
+    
     conn = get_db_connection()
-    job = conn.execute(
-        "SELECT * FROM uploads WHERE status = 'PENDENTE' "
-        "ORDER BY priority DESC, created_at ASC LIMIT 1"
-    ).fetchone()
-    conn.close()
 
-    if not job:
-        return
+    try:
+        # -------------------------------------------------
+        # Seleção FAIR (round-robin por usuário)
+        # -------------------------------------------------
+        job = conn.execute("""
+            WITH next_job AS (
+                SELECT u.id
+                FROM uploads u
+                JOIN (
+                    SELECT user_id, MIN(created_at) AS first_job_time
+                    FROM uploads
+                    WHERE status = 'PENDENTE'
+                    GROUP BY user_id
+                ) grouped ON u.user_id = grouped.user_id AND u.created_at = grouped.first_job_time
+                ORDER BY grouped.first_job_time ASC
+                LIMIT 1
+            )
+            UPDATE uploads
+            SET status = 'PROCESSANDO',
+                started_at = ?
+            WHERE id = (SELECT id FROM next_job)
+            RETURNING *;
+        """, (now_str,)).fetchone()
+
+        conn.commit()
+
+        if not job:
+            return None
+
+        job = dict(job)  
+        log_action(job["user_id"], "Job Iniciado", f"BaseName={job['base_name']} | File={job['file_name']}")
+
+    except Exception as e:
+        conn.rollback()
+        print(f"[ERRO] Falha ao buscar próximo job: {e}")
+        return None
+    finally:
+        conn.close()
     
     user_id = job["user_id"]
     base_name = job["base_name"]
@@ -233,8 +270,8 @@ def process_next_job():
     user_name = user["name"].replace(" ", "")
     user_email = user["email"]
 
-    input_dir = f"{ALPHAFOLD_INPUT_BASE}/{user_name}"
-    output_dir = f"{ALPHAFOLD_OUTPUT_BASE}/{user_name}"
+    input_dir = shlex.quote(f"{ALPHAFOLD_INPUT_BASE}/{user_name}")
+    output_dir = shlex.quote(f"{ALPHAFOLD_OUTPUT_BASE}/{user_name}")
     job_output_dir = f"{output_dir}/{base_name}"
 
     cmd = (
@@ -249,13 +286,21 @@ def process_next_job():
         f"--output_dir=/root/af_output/{base_name} "
     )
 
-    # Atualiza status no banco
-    conn = get_db_connection()
-    conn.execute("UPDATE uploads SET status = 'PROCESSANDO' WHERE id = ?", (job["id"],))
-    conn.commit()
-    conn.close()
+    # # Atualiza status no banco
+    # conn = get_db_connection()
+    # # conn.execute("UPDATE uploads SET status = 'PROCESSANDO' WHERE id = ?", (job["id"],))
 
-    # Executa remotamente
+    # conn.execute("UPDATE uploads SET status = 'PROCESSANDO' \
+    #                 WHERE id= (SELECT id FROM uploads \
+    #                 WHERE status = 'PENDENTE' \
+    #                 ORDER BY priority DESC, created_at ASC " \
+    #                 "LIMIT 1) " \
+    #              "RETURNING *;").fetchone()
+
+    # conn.commit()
+    # conn.close()
+
+    # Executa remotamente em thread
     def run_job():
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -266,34 +311,41 @@ def process_next_job():
 
             stdin, stdout, stderr = ssh.exec_command(cmd)
 
-            conn = get_db_connection()
-            conn.execute("UPDATE uploads SET status = 'PROCESSANDO' WHERE id = ?", (job["id"],))
-            conn.commit()
-            conn.close()
-
             # Espera finalização
             while not stdout.channel.exit_status_ready():
                 time.sleep(2)
 
             exit_status = stdout.channel.recv_exit_status()
+            
+            # conn.execute("UPDATE uploads SET status = 'PROCESSANDO' WHERE id = ?", (job["id"],))
+            # conn.commit()
+            # conn.close()
 
             remote_cif = f"{job_output_dir}/alphafold_prediction/alphafold_prediction_model.cif"
             stdin, stdout, _ = ssh.exec_command(f'test -f "{remote_cif}" && echo OK || echo NO')
             result = stdout.read().decode().strip()
-
+            
             conn = get_db_connection()
             if exit_status == 0 and result == "OK":
                 conn.execute("UPDATE uploads SET status = 'COMPLETO' WHERE id = ?", (job["id"],))
                 send_processing_complete_email(user_name, user_email, base_name, user_id)
                 log_action(user_id, "Job concluído com sucesso", base_name)
             else:
-                conn.execute("UPDATE uploads SET status = 'ERRO' WHERE id = ?", (job["id"],))
+                error_msg = stderr.read().decode().strip()
+                conn.execute("UPDATE uploads SET status = 'ERRO', details = ? WHERE id = ?", error_msg, (job["id"],))
                 log_action(user_id, "Erro no job", f"{base_name} - exit {exit_status}, exists={result}")
             conn.commit()
             conn.close()
 
         except Exception as e:
-            log_action(user_id, "Erro exec fila", str(e))
+            conn = get_db_connection()
+            conn.execute(
+                "UPDATE uploads SET status = 'ERRO', details = ? WHERE id = ?",
+                (str(e), job["id"])
+            )
+            conn.commit()
+            conn.close()
+            log_action(job["user_id"], "Erro de Execução", f"BaseName={base_name} | Exception={e}")
         finally:
             ssh.close()
 

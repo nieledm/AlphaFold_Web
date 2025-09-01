@@ -1,21 +1,28 @@
-from flask import Flask, url_for
+from flask import Flask
 from itsdangerous import URLSafeTimedSerializer
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = '#!Alph@3!'
 
-# Configuração conexão Horizon
-ALPHAFOLD_SSH_HOST = '143.106.4.186'
-ALPHAFOLD_SSH_PORT = 2323
-ALPHAFOLD_SSH_USER = 'alphaFoldWeb'
-
 # Configurações AlphaFold
-ALPHAFOLD_INPUT_BASE = '/str1/projects/AI-DD/alphafold3/alphafold3_input'
-ALPHAFOLD_OUTPUT_BASE = '/str1/projects/AI-DD/alphafold3/alphafold3_output'
-ALPHAFOLD_PARAMS = '/str1/projects/AI-DD/alphafold3/alphafold3_params'
-ALPHAFOLD_DB = '/str1/projects/AI-DD/alphafold3/alphafold3_DB'
+ALPHAFOLD_SSH_HOST = os.getenv("ALPHAFOLD_SSH_HOST")
+ALPHAFOLD_SSH_PORT = int(os.getenv("ALPHAFOLD_SSH_PORT", 22))
+ALPHAFOLD_SSH_USER = os.getenv("ALPHAFOLD_SSH_USER")
+
+ALPHAFOLD_INPUT_BASE = os.getenv("ALPHAFOLD_INPUT_BASE")
+ALPHAFOLD_OUTPUT_BASE = os.getenv("ALPHAFOLD_OUTPUT_BASE")
+ALPHAFOLD_PARAMS = os.getenv("ALPHAFOLD_PARAMS")
+ALPHAFOLD_DB = os.getenv("ALPHAFOLD_DB")
 
 # Configurações de e-mail
-EMAIL_SENDER = 'nieledm@gmail.com'
-EMAIL_PASSWORD = 'zlde qbxb zvif bfpg'
+EMAIL_SENDER = os.getenv("EMAIL_SENDER")
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+
 serializer = URLSafeTimedSerializer(app.secret_key)
+
+# URL base para download
+BASE_URL = os.getenv("BASE_URL", "http://localhost:5000")

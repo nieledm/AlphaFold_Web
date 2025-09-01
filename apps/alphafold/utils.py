@@ -4,6 +4,7 @@ import re
 import paramiko
 import select
 import time
+import shlex
 from database import get_db_connection
 
 from apps.logs.utils import log_action
@@ -51,8 +52,13 @@ def run_alphafold_in_background(cmd, user_name, user_email, base_name, user_id):
             ssh.connect(ALPHAFOLD_SSH_HOST, port=ALPHAFOLD_SSH_PORT, username=ALPHAFOLD_SSH_USER)
 
             user_dir = user_name.replace(' ', '')
-            mkdir = f"mkdir -p '{ALPHAFOLD_INPUT_BASE}/{user_dir}' " \
-                    f"'{ALPHAFOLD_OUTPUT_BASE}/{user_dir}/{base_name}'"
+
+            input_path = shlex.quote(f"{ALPHAFOLD_INPUT_BASE}/{user_dir}")
+            output_path = shlex.quote(f"{ALPHAFOLD_OUTPUT_BASE}/{user_dir}/{base_name}")
+            
+            # mkdir = f"mkdir -p '{ALPHAFOLD_INPUT_BASE}/{user_dir}' " \
+            #         f"'{ALPHAFOLD_OUTPUT_BASE}/{user_dir}/{base_name}'"
+            mkdir = f"mkdir -p {input_path} {output_path}"
             ssh.exec_command(mkdir)
 
             stdin, stdout, stderr = ssh.exec_command(cmd)
@@ -84,7 +90,7 @@ def run_alphafold_in_background(cmd, user_name, user_email, base_name, user_id):
             exit_status = stdout.channel.recv_exit_status()
             log_action(user_id, 'Exit status', str(exit_status))
 
-            remote_cif = f"{ALPHAFOLD_OUTPUT_BASE}/{user_dir}/{base_name}/" \
+            remote_cif = f"output_path/" \
                         f"alphafold_prediction/alphafold_prediction_model.cif"
             
             check_cmd = f'test -f "{remote_cif}" && echo OK || echo NO'

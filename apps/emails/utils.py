@@ -81,10 +81,32 @@ def send_activation_email(user_email, user_name):
     """
     send_email(user_email, "Sua conta no AlphaFold foi ativada", html)
 
+# def send_processing_complete_email(user_name, user_email, base_name, user_id):
+#     """Envia e-mail ao usuário informando que o processamento foi concluído"""
+#     try:
+#         download_url = url_for('apf.download_result', base_name=base_name, _external=True)
+#     except Exception as e:
+#         print(f"[ERRO] Falha ao gerar link de download: {e}")
+#         download_url = "[Erro ao gerar link]"
+
+#     html = f"""
+#     <html>
+#         <body>
+#             <p>Olá {user_name},</p>
+#             <p>Seu processamento com o AlphaFold foi concluído com sucesso.</p>
+#             <p>Você pode baixar o resultado indo ao seu dashboard ou clicando no link abaixo:</p>
+#             <p><a href="{download_url}">Download do resultado</a></p>
+#             <p>Obrigado por usar o sistema AlphaFold!</p>
+#         </body>
+#     </html>
+#     """
+#     send_email(user_email, "AlphaFold: Resultado disponível", html)
+
 def send_processing_complete_email(user_name, user_email, base_name, user_id):
     """Envia e-mail ao usuário informando que o processamento foi concluído"""
     try:
-        download_url = url_for('apf.download_result', base_name=base_name, _external=True)
+        # Monta URL manualmente
+        download_url = f"{BASE_URL}/download/{base_name}"
     except Exception as e:
         print(f"[ERRO] Falha ao gerar link de download: {e}")
         download_url = "[Erro ao gerar link]"

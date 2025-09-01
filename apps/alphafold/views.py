@@ -9,6 +9,7 @@ import tempfile
 import zipfile
 import paramiko
 import stat
+import shlex
 from database import get_db_connection
 
 from apps.logs.utils import log_action
@@ -82,8 +83,18 @@ def upload_file():
         output_subdir = os.path.join(output_user_dir, base_name)
 
         # Cria diretórios para input e output caso não existam
-        mkdir_command = f"mkdir -p '{input_subdir}' '{output_user_dir}' '{output_subdir}'"
-        ssh.exec_command(mkdir_command)
+        # mkdir_command = f"mkdir -p '{input_subdir}' '{output_user_dir}' '{output_subdir}'"
+        # ssh.exec_command(mkdir_command)
+        input_path_ssh = shlex.quote(input_subdir)
+        output_path_ssh = shlex.quote(output_user_dir)
+        output_subdir_ssh = shlex.quote(output_subdir)
+
+        mkdir_command = f"mkdir -p {input_path_ssh} {output_path_ssh} {output_subdir_ssh}"
+        stdin, stdout, stderr = ssh.exec_command(mkdir_command)
+        exit_status = stdout.channel.recv_exit_status()
+        if exit_status != 0:
+            error = stderr.read().decode()
+            raise RuntimeError(f"Erro criando diretórios: {error}")
 
         # Salva arquivo
         input_file_path = os.path.join(input_subdir, filename)
@@ -220,7 +231,10 @@ def delete_result(base_name):
         user_dir = user_name.replace(' ', '')
         target_dir = f"{ALPHAFOLD_OUTPUT_BASE}/{user_dir}/{base_name}"
 
-        ssh.exec_command(f"rm -rf '{target_dir}'")
+        target_dir_ssh = shlex.quote(target_dir)
+        ssh.exec_command(f"rm -rf {target_dir_ssh}")
+
+        # ssh.exec_command(f"rm -rf '{target_dir}'")
 
         conn = get_db_connection()
         conn.execute("UPDATE uploads SET status='EXCLUIDO' WHERE base_name = ?", (base_name,))
