@@ -83,8 +83,6 @@ def upload_file():
         output_subdir = os.path.join(output_user_dir, base_name)
 
         # Cria diretórios para input e output caso não existam
-        # mkdir_command = f"mkdir -p '{input_subdir}' '{output_user_dir}' '{output_subdir}'"
-        # ssh.exec_command(mkdir_command)
         input_path_ssh = shlex.quote(input_subdir)
         output_path_ssh = shlex.quote(output_user_dir)
         output_subdir_ssh = shlex.quote(output_subdir)

@@ -17,8 +17,6 @@ def status_page():
 
     status = parse_system_status(raw_status) if 'error' not in raw_status else None
 
-    # running_jobs, pending_jobs = get_job_counts()
-    # queue_jobs = get_pending_jobs() if session.get("is_admin") else []
     running_count, pending_count = get_job_counts()
     pending_jobs_list = get_pending_jobs() if session.get("is_admin") else []
     queue_jobs = []
@@ -27,8 +25,6 @@ def status_page():
     return render_template('status_page.html',
                         status=status,
                         error=raw_status.get('error'),
-                        #  running_jobs=running_jobs,
-                        #  pending_jobs=pending_jobs,
                         running_count=running_count,
                         pending_count=pending_count,
                         pending_jobs_list=pending_jobs_list,

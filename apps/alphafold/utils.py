@@ -13,7 +13,6 @@ from config import ALPHAFOLD_SSH_HOST, ALPHAFOLD_SSH_PORT, ALPHAFOLD_SSH_USER, \
                  
 from apps.emails.utils import send_email, send_processing_complete_email
 
-
 # ==============================================================
 # FUNÇÕES DE VALIDAÇÃO
 # ==============================================================
@@ -56,8 +55,6 @@ def run_alphafold_in_background(cmd, user_name, user_email, base_name, user_id):
             input_path = shlex.quote(f"{ALPHAFOLD_INPUT_BASE}/{user_dir}")
             output_path = shlex.quote(f"{ALPHAFOLD_OUTPUT_BASE}/{user_dir}/{base_name}")
             
-            # mkdir = f"mkdir -p '{ALPHAFOLD_INPUT_BASE}/{user_dir}' " \
-            #         f"'{ALPHAFOLD_OUTPUT_BASE}/{user_dir}/{base_name}'"
             mkdir = f"mkdir -p {input_path} {output_path}"
             ssh.exec_command(mkdir)
 

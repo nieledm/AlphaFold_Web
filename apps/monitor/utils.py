@@ -286,20 +286,6 @@ def process_next_job():
         f"--output_dir=/root/af_output/{base_name} "
     )
 
-    # # Atualiza status no banco
-    # conn = get_db_connection()
-    # # conn.execute("UPDATE uploads SET status = 'PROCESSANDO' WHERE id = ?", (job["id"],))
-
-    # conn.execute("UPDATE uploads SET status = 'PROCESSANDO' \
-    #                 WHERE id= (SELECT id FROM uploads \
-    #                 WHERE status = 'PENDENTE' \
-    #                 ORDER BY priority DESC, created_at ASC " \
-    #                 "LIMIT 1) " \
-    #              "RETURNING *;").fetchone()
-
-    # conn.commit()
-    # conn.close()
-
     # Executa remotamente em thread
     def run_job():
         ssh = paramiko.SSHClient()
