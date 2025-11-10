@@ -87,9 +87,8 @@ def run_alphafold_in_background(cmd, user_name, user_email, base_name, user_id):
             exit_status = stdout.channel.recv_exit_status()
             log_action(user_id, 'Exit status', str(exit_status))
 
-            remote_cif = f"output_path/" \
-                        f"alphafold_prediction/alphafold_prediction_model.cif"
-            
+            remote_cif = f"{output_path}/alphafold_prediction/alphafold_prediction_model.cif"
+
             check_cmd = f'test -f "{remote_cif}" && echo OK || echo NO'
 
             # Verificar se arquivo de resultado foi gerado (espera até 60s)
