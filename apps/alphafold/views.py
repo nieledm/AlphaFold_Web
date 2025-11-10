@@ -11,11 +11,11 @@ import paramiko
 import stat
 import shlex
 from database import get_db_connection
+from conections import get_ssh_connection
 
 from apps.logs.utils import log_action
 from apps.autentication.utils import admin_required, login_required
-from config import ALPHAFOLD_SSH_HOST, ALPHAFOLD_SSH_PORT, ALPHAFOLD_SSH_USER, \
-                 ALPHAFOLD_INPUT_BASE, ALPHAFOLD_OUTPUT_BASE, ALPHAFOLD_PARAMS, ALPHAFOLD_DB
+from config import ALPHAFOLD_INPUT_BASE, ALPHAFOLD_OUTPUT_BASE, ALPHAFOLD_PARAMS, ALPHAFOLD_DB
 
 from .utils import run_alphafold_in_background
 
@@ -70,7 +70,7 @@ def upload_file():
         # Conexão SSH
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(ALPHAFOLD_SSH_HOST, port=ALPHAFOLD_SSH_PORT, username=ALPHAFOLD_SSH_USER)
+        ssh = get_ssh_connection()
 
         sftp = ssh.open_sftp()
 
@@ -150,11 +150,7 @@ def download_result(base_name):
     try:
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(
-            hostname=ALPHAFOLD_SSH_HOST,
-            port=ALPHAFOLD_SSH_PORT,
-            username=ALPHAFOLD_SSH_USER
-        )
+        ssh = get_ssh_connection()
 
         sftp = ssh.open_sftp()
         remote_folder = f"{ALPHAFOLD_OUTPUT_BASE}/{user_name.replace(' ', '')}/{base_name}/alphafold_prediction"
@@ -223,7 +219,7 @@ def delete_result(base_name):
     try:
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(ALPHAFOLD_SSH_HOST, port=ALPHAFOLD_SSH_PORT, username=ALPHAFOLD_SSH_USER)
+        ssh = get_ssh_connection()
         sftp = ssh.open_sftp()
         
         user_dir = user_name.replace(' ', '')

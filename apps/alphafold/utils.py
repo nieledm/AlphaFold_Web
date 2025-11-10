@@ -6,10 +6,10 @@ import select
 import time
 import shlex
 from database import get_db_connection
+from conections import get_ssh_connection
 
 from apps.logs.utils import log_action
-from config import ALPHAFOLD_SSH_HOST, ALPHAFOLD_SSH_PORT, ALPHAFOLD_SSH_USER, \
-                 ALPHAFOLD_INPUT_BASE, ALPHAFOLD_OUTPUT_BASE, app
+from config import ALPHAFOLD_INPUT_BASE, ALPHAFOLD_OUTPUT_BASE, app
                  
 from apps.emails.utils import send_email, send_processing_complete_email
 
@@ -48,7 +48,7 @@ def run_alphafold_in_background(cmd, user_name, user_email, base_name, user_id):
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
         try:
-            ssh.connect(ALPHAFOLD_SSH_HOST, port=ALPHAFOLD_SSH_PORT, username=ALPHAFOLD_SSH_USER)
+            ssh = get_ssh_connection()
 
             user_dir = user_name.replace(' ', '')
 

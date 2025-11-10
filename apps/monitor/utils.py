@@ -5,10 +5,10 @@ import shlex
 import pytz
 from datetime import datetime
 from database import get_db_connection
-from config import ALPHAFOLD_SSH_HOST, ALPHAFOLD_SSH_PORT, ALPHAFOLD_SSH_USER, \
-                 ALPHAFOLD_INPUT_BASE, ALPHAFOLD_OUTPUT_BASE, ALPHAFOLD_PARAMS, ALPHAFOLD_DB
+from config import ALPHAFOLD_INPUT_BASE, ALPHAFOLD_OUTPUT_BASE, ALPHAFOLD_PARAMS, ALPHAFOLD_DB
 from apps.logs.utils import log_action
 from apps.emails.utils import send_processing_complete_email
+from conections import get_ssh_connection
 
 import os
 import sys
@@ -203,7 +203,7 @@ MAX_CONTAINERS = get_max_containers()
 def get_running_container_count():
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh.connect(ALPHAFOLD_SSH_HOST, port=ALPHAFOLD_SSH_PORT, username=ALPHAFOLD_SSH_USER)
+    ssh = get_ssh_connection()
     stdin, stdout, _ = ssh.exec_command("docker ps | grep alphafold3 | wc -l")
     count = int(stdout.read().decode().strip())
     ssh.close()
@@ -292,7 +292,7 @@ def process_next_job():
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
         try:
-            ssh.connect(ALPHAFOLD_SSH_HOST, port=ALPHAFOLD_SSH_PORT, username=ALPHAFOLD_SSH_USER)
+            sssh = get_ssh_connection()
             ssh.exec_command(f"mkdir -p '{job_output_dir}'")
 
             stdin, stdout, stderr = ssh.exec_command(cmd)
