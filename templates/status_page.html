@@ -15,10 +15,10 @@
 {% if error %}
     <div class="alert alert-danger">Erro: {{ error }}</div>
 {% else %}
-    <div class="row justify-content-center">
+    <div class="row align-items-stretch">
         <!-- Seção CPU -->
         <div class="col-md-6">
-            <div class="card mb-4">
+            <div class="card status-card h-100 mb-4">
                 <div class="card-header bg-primary text-white">
                     <h3 class="card-title">CPU</h3>
                 </div>
@@ -54,7 +54,7 @@
 
         <!-- Seção Memória -->
         <div class="col-md-6">
-            <div class="card mb-4">
+            <div class="card status-card h-100 mb-4">
                 <div class="card-header bg-info text-white">
                     <h3 class="card-title">Memória</h3>
                 </div>
@@ -90,10 +90,10 @@
         </div>
     </div>
 
-    <div class="row justify-content-center">
+    <div class="row align-items-stretch">
         <!-- Seção GPU -->
         <div class="col-md-6 col-lg-4 h-100">
-            <div class="card mb-4">
+            <div class="card status-card h-100 mb-4">
                 <div class="card-header bg-secondary text-white">
                     <h3 class="card-title">GPU</h3>
                 </div>
@@ -130,7 +130,7 @@
 
         <!-- Seção Disco -->
         <div class="col-md-4 col-lg-4 h-150">
-            <div class="card mb-4">
+            <div class="card status-card h-100 mb-4">
                 <div class="card-header bg-dark text-white">
                     <h3 class="card-title">Armazenamento</h3>
                 </div>
@@ -163,19 +163,19 @@
 <div class="row">   
     {% if session.get('is_admin') %}
         <div class="col-md-12">
-            <div class="card mb-4">
+            <div class="card status-card h-100 mb-4">
                 <div class="card-header bg-secondary bg-opacity-10 text-dark">
                     <div class="d-flex justify-content-between align-items-center">
                         <h3 class="card-title mb-0">Processamento</h3>
                         
                         <div style="align-items: end;">
-                            <div class="card-body text-center d-flex align-items-center justify-content-center">
+                            <div class="card-body text-center d-flex align-items-center align-items-stretch">
                                 <p class="mb-0"><i class="fas fa-server"></i> Containers Máx. = </p>
                                 <spam class="text-success m-0">{{ MAX_CONTAINERS }}</spam>
                                 <form method="POST" action="{{ url_for('monitor.update_max_containers') }}" class="d-flex align-items-center">
                                     <input type="number" name="max_containers" min="1" class="box-input" 
                                         value="{{ max_containers }}" style="width:37px;">
-                                    <button type="submit" class="btn btn-outline-primary btn-sm">Atualizar</button>
+                                    <button type="submit" class="btn btn-outline-primary btn-sm btn-uniform">Atualizar</button>
                                 </form>
                             </div>
                     </div>
@@ -191,7 +191,7 @@
                             
                             <!-- Processando -->
                             <div class="col-md-6">
-                                <div class="card bg-light" style="max-height: 500px; overflow-y: auto;">
+                                <div class="card status-card h-100 bg-light" style="max-height: 500px; overflow-y: auto;">
                                     <div class="card-body text-center">
                                         <h3 class="text-primary">{{ running_count }}</h3>
                                         <p class="mb-0"><i class="fas fa-cogs"></i> Processando</p>
@@ -217,14 +217,14 @@
                                                                 <form action="{{ url_for('monitor.force_cancel_job', base_name=job.base_name) }}" 
                                                                     method="POST" class="d-inline"
                                                                     onsubmit="return confirm('Cancelar job em espera?');">
-                                                                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                                    <button type="submit" class="btn btn-outline-danger btn-sm btn-uniform">
                                                                         <i class="fas fa-ban"></i> Cancelamento
                                                                     </button>
                                                                 </form>
                                                                 <form action="{{ url_for('monitor.increase_priority', base_name=job.base_name) }}" 
                                                                     method="POST" class="d-inline"
                                                                     onsubmit="return confirm('Priorizar job?');">
-                                                                    <button type="submit" class="btn btn-outline-primary">
+                                                                    <button type="submit" class="btn btn-outline-primary btn-uniform btn-sm">
                                                                         <i class="fas fa-plus"></i> Prior.
                                                                     </button>
                                                                 </form>
@@ -240,7 +240,7 @@
                             
                             <!-- Fila de espera -->
                             <div class="col-md-6">
-                                <div class="card bg-light" style="max-height: 500px; overflow-y: auto;">
+                                <div class="card status-card h-100 bg-light" style="max-height: 500px; overflow-y: auto;">
                                     <div class="card-body text-center">
                                         <h3 class="text-warning">{{ pending_jobs_list|length }}</h3>
                                         <p class="mb-0"><i class="fas fa-hourglass-half"></i> Na Fila</p>
@@ -266,14 +266,14 @@
                                                                     <form action="{{ url_for('monitor.force_cancel_job', base_name=job.base_name) }}" 
                                                                         method="POST" class="d-inline"
                                                                         onsubmit="return confirm('Cancelar job em execução?');">
-                                                                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                                        <button type="submit" class="btn btn-outline-danger btn-sm btn-uniform">
                                                                             Cancelar
                                                                         </button>
                                                                     </form>
                                                                     <form action="{{ url_for('monitor.increase_priority', base_name=job.base_name) }}" 
                                                                         method="POST" class="d-inline"
                                                                         onsubmit="return confirm('Priorizar job?');">
-                                                                        <button type="submit" class="btn btn-outline-primary btn-sm">
+                                                                        <button type="submit" class="btn btn-outline-primary btn-sm btn-uniform">
                                                                             Priorizar
                                                                         </button>
                                                                     </form>

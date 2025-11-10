@@ -1,0 +1,108 @@
+/* Estilos para a seção de status */
+.status-card {
+    margin-bottom: 20px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    border: none;
+    border-radius: 8px;
+}
+
+.status-card .card-header {
+    border-radius: 8px 8px 0 0 !important;
+    font-weight: bold;
+}
+
+/* Estilos para as barras de progresso */
+.progress {
+    height: 25px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
+.progress-bar {
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Estilos específicos para GPU */
+.gpu-utilization {
+    min-width: 50px;
+}
+
+/* Estilos para a tabela */
+.status-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.status-table th {
+    background-color: #f8f9fa;
+    position: sticky;
+    top: 0;
+}
+
+/* Estilos responsivos */
+@media (max-width: 768px) {
+    .status-card {
+        margin-bottom: 15px;
+    }
+    
+    .progress {
+        height: 20px;
+    }
+}
+
+/* Título da pagina */
+.title-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 2rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid rgba(1, 104, 103, 0.2);
+}
+
+.page-title {
+    font-weight: 700;
+    margin: 0;
+    line-height: 1.2;
+    color: #012e2d;
+    position: relative;
+}
+
+.title-highlight {
+    /* font-size: 1.8rem; */
+    display: block;
+    color: #016867;
+}
+
+.page-title::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -0.5rem;
+    width: 50px;
+    height: 3px;
+    background: linear-gradient(90deg, #07b4b1, transparent);
+}
+
+/* Fila de Jobs - prioridade*/
+.bg-warning {
+    background-color: #ffc107 !important;
+    color: #212529;
+}
+
+.job-high-priority {
+    border-left: 4px solid #ffc107;
+    background-color: rgba(255, 193, 7, 0.1);
+}
+
+.box-input{
+border:0;
+background: transparent;
+text-align: center;
+box-shadow: none;
+text-shadow: none;
+}
