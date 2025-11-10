@@ -1,15 +1,7 @@
 from flask import render_template, redirect, url_for, flash, request, session, g, send_file
-import os
-import io
-import json
 from threading import Thread
 from datetime import datetime
-import pytz
-import tempfile
-import zipfile
-import paramiko
-import stat
-import shlex
+import os, io, json, pytz, tempfile, zipfile, paramiko, stat, shlex, pwd, grp
 from database import get_db_connection
 from conections import get_ssh_connection
 
@@ -113,9 +105,13 @@ def upload_file():
 
         log_action(user_id, 'Arquivo JSON Uploaded', f'Nome: {filename}, BaseName: {base_name}')
 
+        uid = pwd.getpwnam("alphaFoldWeb").pw_uid
+        gid = grp.getgrnam("alphaFoldWeb").gr_gid
+
         # Monta comando e roda em background
         command = (
             f"docker run "
+            f"--user {uid}:{gid} "
             f"--volume {input_subdir}:/root/af_input "
             f"--volume {output_user_dir}:/root/af_output "
             f"--volume {ALPHAFOLD_PARAMS}:/root/models "
