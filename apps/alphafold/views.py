@@ -105,7 +105,7 @@ def upload_file():
 
         log_action(user_id, 'Arquivo JSON Uploaded', f'Nome: {filename}, BaseName: {base_name}')
 
-        uid = pwd.getpwnam("root").pw_uid
+        uid = 0  # root
         gid = grp.getgrnam("alphaFoldWeb").gr_gid
 
         # Monta comando e roda em background
@@ -121,7 +121,7 @@ def upload_file():
             f"--json_path=/root/af_input/{filename} "
             f"--output_dir=/root/af_output/{base_name} "
         )
-
+       
         Thread(target=run_alphafold_in_background, args=(
             command, user_name, user_email, base_name, user_id
         )).start()
