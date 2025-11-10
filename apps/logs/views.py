@@ -112,7 +112,7 @@ def clear_logs():
         elif days_old == 'dates':
             if not clear_start_date or not clear_end_date:
                 flash('Por favor, forneça as datas de início e fim para a limpeza por intervalo.', 'warning')
-                return redirect(url_for('admins.view_logs'))
+                return redirect(url_for('logs.view_logs'))
             
             delete_query += " AND timestamp >= ?"
             delete_params.append(clear_start_date + " 00:00:00")
@@ -134,7 +134,7 @@ def clear_logs():
 
         if not days_old and not action_type:
             flash('Por favor, selecione uma opção de limpeza por data ou insira um tipo de ação.', 'warning')
-            return redirect(url_for('admins.view_logs'))
+            return redirect(url_for('logs.view_logs'))
 
         cursor.execute(delete_query, delete_params)
         conn.commit()
@@ -149,7 +149,7 @@ def clear_logs():
     finally:
         conn.close()
 
-    return redirect(url_for('admins.view_logs'))
+    return redirect(url_for('logs.view_logs'))
 
 @logs_bp.route('/admin/export_logs', methods=['POST'])
 def export_logs():
@@ -182,6 +182,6 @@ def export_logs():
 
     except Exception as e:
         flash(f'Ocorreu um erro ao exportar os logs: {e}', 'danger')
-        return redirect(url_for('admins.view_logs'))
+        return redirect(url_for('logs.view_logs'))
     finally:
         conn.close()
