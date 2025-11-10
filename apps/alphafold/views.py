@@ -105,7 +105,7 @@ def upload_file():
 
         log_action(user_id, 'Arquivo JSON Uploaded', f'Nome: {filename}, BaseName: {base_name}')
 
-        uid = pwd.getpwnam("alphaFoldWeb").pw_uid
+        uid = pwd.getpwnam("root").pw_uid
         gid = grp.getgrnam("alphaFoldWeb").gr_gid
 
         # Monta comando e roda em background
