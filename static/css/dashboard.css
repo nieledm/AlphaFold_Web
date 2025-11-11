@@ -1,4 +1,4 @@
-/* dashboard.css - VERSÃO MELHORADA */
+/* dashboard.css */
 
 .top-spacing-reduced {
     margin-top: -2rem;
@@ -150,7 +150,7 @@
     border-bottom: 2px solid rgba(1, 104, 103, 0.1);
 }
 
-/* Tabela melhorada */
+/* Tabela */
 .uploads-table {
     background: white;
     border-radius: 12px;
@@ -170,6 +170,37 @@
     font-weight: 600;
 }
 
+/* Controle de largura das colunas da tabela */
+.uploads-table thead th:nth-child(1),  /* Arquivo */
+.uploads-table tbody td:nth-child(1) {
+    width: 40%;
+    min-width: 200px;
+}
+
+.uploads-table tbody td:nth-child(1) {
+    word-wrap: break-word;
+    max-width: 300px;
+}
+
+.uploads-table thead th:nth-child(2),  /* Status */
+.uploads-table tbody td:nth-child(2) {
+    width: 15%;
+    min-width: 120px;
+    text-align: center;
+}
+
+.uploads-table thead th:nth-child(3),  /* Data */
+.uploads-table tbody td:nth-child(3) {
+    width: 20%;
+    min-width: 150px;
+}
+
+.uploads-table thead th:nth-child(4),  /* Ação */
+.uploads-table tbody td:nth-child(4) {
+    width: 25%;
+    min-width: 180px;
+}
+
 .uploads-table tbody td {
     padding: 1rem;
     vertical-align: middle;
@@ -182,10 +213,14 @@
 
 /* Status badges */
 .status-badge {
-    padding: 0.35rem 0.75rem;
+    padding: 0.35rem 0.5rem;
     border-radius: 20px;
     font-weight: 600;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
+    display: inline-block;
+    text-align: center;
+    min-width: 100px;
+    white-space: nowrap;
 }
 
 .status-processing {
@@ -222,7 +257,9 @@
 .action-buttons {
     display: flex;
     gap: 0.5rem;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    align-items: center;
 }
 
 .btn-action {
@@ -232,6 +269,8 @@
     font-weight: 500;
     border: none;
     transition: all 0.3s ease;
+    white-space: nowrap;
+    min-width: 80px;
 }
 
 .btn-download {
@@ -261,6 +300,32 @@
 }
 
 /* Responsividade */
+@media (max-width: 992px) {
+    .uploads-table thead th:nth-child(1),
+    .uploads-table tbody td:nth-child(1) {
+        width: 35%;
+        min-width: 180px;
+    }
+    
+    .uploads-table thead th:nth-child(2),
+    .uploads-table tbody td:nth-child(2) {
+        width: 15%;
+        min-width: 100px;
+    }
+    
+    .uploads-table thead th:nth-child(3),
+    .uploads-table tbody td:nth-child(3) {
+        width: 20%;
+        min-width: 130px;
+    }
+    
+    .uploads-table thead th:nth-child(4),
+    .uploads-table tbody td:nth-child(4) {
+        width: 30%;
+        min-width: 150px;
+    }
+}
+
 @media (max-width: 768px) {
     .upload-card .card-body {
         padding: 1.5rem;
@@ -275,16 +340,41 @@
     }
     
     .uploads-table {
-        font-size: 0.9rem;
+        font-size: 0.85rem;
+    }
+
+    .uploads-table thead th:nth-child(1),
+    .uploads-table tbody td:nth-child(1) {
+        width: 30%;
+        min-width: 150px;
+    }
+    
+    .uploads-table thead th:nth-child(3),
+    .uploads-table tbody td:nth-child(3) {
+        width: 25%;
+        min-width: 120px;
+    }
+    
+    .uploads-table thead th:nth-child(4),
+    .uploads-table tbody td:nth-child(4) {
+        width: 35%;
+        min-width: 140px;
+    }
+    
+    .status-badge {
+        font-size: 0.7rem;
+        min-width: 90px;
+        padding: 0.3rem 0.4rem;
     }
     
     .action-buttons {
         flex-direction: column;
     }
-    
+
     .btn-action {
-        width: 100%;
-        justify-content: center;
+        min-width: 70px;
+        padding: 0.35rem 0.6rem;
+        font-size: 0.75rem;
     }
 }
 
@@ -295,5 +385,26 @@
     
     .upload-card .card-body {
         padding: 1rem;
+    }
+    .action-buttons {
+        flex-direction: column;
+        gap: 0.3rem;
+    }
+    
+    .btn-action {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .uploads-table thead th:nth-child(2),
+    .uploads-table tbody td:nth-child(2) {
+        width: 20%;
+        min-width: 80px;
+    }
+    
+    .uploads-table thead th:nth-child(4),
+    .uploads-table tbody td:nth-child(4) {
+        width: 40%;
+        min-width: 120px;
     }
 }

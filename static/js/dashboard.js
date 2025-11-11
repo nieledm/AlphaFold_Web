@@ -1,5 +1,3 @@
-// dashboard.js - VERSÃO MELHORADA
-
 document.addEventListener('DOMContentLoaded', function() {
     // Feedback visual para os botões
     const buttons = document.querySelectorAll('.btn-action');
