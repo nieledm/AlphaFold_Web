@@ -608,22 +608,75 @@ function downloadAllJSON() {
   downloadJSON(jsonData);
 }
 
+// function ProcessJSON() {
+//   const jsonData = generateAndValidateJSON();
+//   if (!jsonData) return;
+
+//   // Session Storage para transferencia do arquivo JSON gerado
+//   sessionStorage.setItem('alphafoldJsonData', JSON.stringify(jsonData));
+//   window.location.href = '/dashboard';
+// }
+
+// function downloadAndProcessJSON() {
+//   const jsonData = generateAndValidateJSON();
+//   if (!jsonData) return;
+
+//   downloadJSON(jsonData);
+//   sessionStorage.setItem('alphafoldJsonData', JSON.stringify(jsonData));
+//   window.location.href = '/dashboard';
+// }
+
 function ProcessJSON() {
   const jsonData = generateAndValidateJSON();
   if (!jsonData) return;
 
-  // Session Storage para transferencia do arquivo JSON gerado
-  sessionStorage.setItem('alphafoldJsonData', JSON.stringify(jsonData));
-  window.location.href = '/dashboard';
+  // Enviar via FormData
+  const formData = new FormData();
+  formData.append('json_data', JSON.stringify(jsonData, null, 2));
+  
+  fetch('/upload', {
+    method: 'POST',
+    body: formData
+  })
+  .then(response => {
+    if (response.ok) {
+      window.location.href = '/dashboard';
+    } else {
+      alert('Erro no upload do arquivo JSON');
+    }
+  })
+  .catch(error => {
+    console.error('Erro:', error);
+    alert('Erro no upload do arquivo JSON');
+  });
 }
 
 function downloadAndProcessJSON() {
   const jsonData = generateAndValidateJSON();
   if (!jsonData) return;
 
+  // Primeiro faz o download
   downloadJSON(jsonData);
-  sessionStorage.setItem('alphafoldJsonData', JSON.stringify(jsonData));
-  window.location.href = '/dashboard';
+  
+  // Depois envia para o servidor
+  const formData = new FormData();
+  formData.append('json_data', JSON.stringify(jsonData, null, 2));
+  
+  fetch('/upload', {
+    method: 'POST',
+    body: formData
+  })
+  .then(response => {
+    if (response.ok) {
+      window.location.href = '/dashboard';
+    } else {
+      alert('Erro no upload do arquivo JSON');
+    }
+  })
+  .catch(error => {
+    console.error('Erro:', error);
+    alert('Erro no upload do arquivo JSON');
+  });
 }
 
 /***************
