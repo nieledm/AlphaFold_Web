@@ -1,60 +1,58 @@
+// dashboard.js - VERSÃO MELHORADA
+
 document.addEventListener('DOMContentLoaded', function() {
-    // Recupera os dados do sessionStorage
-    const jsonData = sessionStorage.getItem('alphafoldJsonData');
-    
-    const fileInput = document.querySelector('input[type="file"]');
-
-    if (!fileInput) {
-        console.warn('Campo de arquivo não encontrado.');
-        return;
-    }
-    
-    if (jsonData) {
-        const now = new Date();
-        const timestamp = now.toISOString()
-            .replace(/[:.]/g, '-') 
-            .replace('T', '_')
-            .slice(0, 19);
+    // Feedback visual para os botões
+    const buttons = document.querySelectorAll('.btn-action');
+    buttons.forEach(button => {
+        button.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-1px)';
+        });
         
-        const fileName = `alphafold_data_${timestamp}.json`;
-
-        // Cria um Blob com os dados
-        const blob = new Blob([jsonData], { type: 'application/json' });
-        const file = new File([blob], fileName, { type: 'application/json' });
-        
-        // Cria um DataTransfer para simular o upload do arquivo
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
-        
-        // Atribui os arquivos ao input
-        const fileInput = document.querySelector('input[type="file"]');
-        fileInput.files = dataTransfer.files;
-
-        // Preenche também o campo de nome manualmente
-        const filenameInput = document.getElementById('filename');
-        if (filenameInput) {
-            filenameInput.value = file.name;
-        }
-        
-        // envia o formulário automaticamente
-        // document.querySelector('form').submit();
-        
-        // Limpa o sessionStorage
-        sessionStorage.removeItem('alphafoldJsonData');
-    }
-
-    // Atualiza o nome do arquivo ao selecionar manualmente
-    fileInput.addEventListener('change', function () {
-        const fileName = this.files[0]?.name || '';
-        const filenameInput = document.getElementById('filename');
-        if (filenameInput) {
-            filenameInput.value = fileName;
-        }
+        button.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+        });
     });
-});
 
-// Preenche o campo Nome do Arquivo automaticamente
-document.querySelector('input[type="file"]').addEventListener('change', function () {
-    const fileName = this.files[0]?.name || '';
-    document.getElementById('filename').value = fileName;
+    // Auto-dismiss alerts após 5 segundos
+    const alerts = document.querySelectorAll('.alert');
+    alerts.forEach(alert => {
+        setTimeout(() => {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        }, 5000);
+    });
+
+    // Melhorar a experiência do upload
+    const fileInput = document.getElementById('file-input');
+    const fileDisplay = document.getElementById('file-display');
+
+    if (fileInput && fileDisplay) {
+        fileInput.addEventListener('dragenter', function(e) {
+            e.preventDefault();
+            fileDisplay.style.borderColor = '#07b4b1';
+            fileDisplay.style.background = '#f0fffd';
+        });
+
+        fileInput.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            if (!fileDisplay.classList.contains('has-file')) {
+                fileDisplay.style.borderColor = '#dee2e6';
+                fileDisplay.style.background = '#f8f9fa';
+            }
+        });
+
+        fileInput.addEventListener('drop', function(e) {
+            e.preventDefault();
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                const event = new Event('change', { bubbles: true });
+                fileInput.dispatchEvent(event);
+            }
+        });
+
+        fileInput.addEventListener('dragover', function(e) {
+            e.preventDefault();
+        });
+    }
 });

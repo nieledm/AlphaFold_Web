@@ -6,34 +6,41 @@
 
 {% block content %}
 <div class="container top-spacing-reduced">
-    <div class="card align-items-center mt-4">
-        <div class="card-body mb-0">
+    <!-- Card de Upload -->
+    <div class="card upload-card">
+        <div class="card-body">
             <div class="title-container">
                 <h3 class="page-title">
-                  <span class="title-highlight">Upload para o Alphafold</span>
+                  <span class="title-highlight">Upload para o AlphaFold</span>
                 </h3>
             </div>            
-            <form action="/upload" method="POST" enctype="multipart/form-data">
-                <div class="form-container">
-                    <div class="column">
-                        <label class="title-sub" for="file">Escolha um arquivo JSON:</label>
-                        <button type="button" class="button" onclick="document.getElementById('file-input').click()">Selecionar Arquivo</button>
-                        <input type="file" id="file-input" name="file" accept=".json" required>
-                    </div>
-                    <div class="column">
-                        <input class="title-sub" type="text" id="filename" name="filename" 
-                        placeholder="Nenhum arquivo selecionado">                       
-                        <input type="submit" class="button" value="Upload">
+            
+            <form action="/upload" method="POST" enctype="multipart/form-data" class="upload-form-container">
+                <div class="file-input-wrapper">
+                    <button type="button" class="file-input-btn" onclick="document.getElementById('file-input').click()">
+                        <i class="fas fa-file-upload"></i>
+                        Selecionar Arquivo
+                    </button>
+                    <input type="file" id="file-input" name="file" accept=".json" required style="display: none;">
+                    <div class="file-display" id="file-display">
+                        Nenhum arquivo selecionado
                     </div>
                 </div>
+                
+                <button type="submit" class="upload-btn" id="upload-btn" disabled>
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    Fazer Upload
+                </button>
             </form>
+            
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
-                    <div class="flash-messages mt-3 mb-0 w-100">
+                    <div class="flash-messages">
                     {% for category, message in messages %}
                         <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            <i class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'danger' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                         </div>
                     {% endfor %}
                     </div>
@@ -42,47 +49,109 @@
         </div>
     </div>
     
-    <h3 class="mt-5">Seus uploads</h3>
-    <table class="table mt-3">
-        <thead>
-            <tr>
-                <th>Arquivo</th>
-                <th>Status</th>
-                <th>Data</th>
-                <th>Ação</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for upload in uploads %}
-            <tr>
-                <td>{{ upload['file_name'] }}</td>
-                <td>{{ upload['status'] }}</td>
-                <td>{{ upload['created_at'] }}</td>
-                <td>
-                    {% if upload['status'] == 'COMPLETO' %}
-                        <a href="{{ url_for('apf.download_result', base_name=upload['base_name']) }}" class="btn btn-sm btn-success">Download</a>
-                        <form method="POST" action="{{ url_for('apf.delete_result', base_name=upload['base_name']) }}" style="display:inline;" onsubmit="return confirm('Deseja excluir este resultado?');">
-                            <button type="submit" class="btn btn-sm btn-danger ms-1">Excluir</button>
-                        </form>
-                    {% elif  upload['status'] == 'ERRO' %}
-                        <i class="fas fa-exclamation-circle text-danger"></i> Erro
-                    {% elif  upload['status'] == 'CANCELADO' %}
-                        <i class="fas fa-ban text-danger"></i> Cancelado
-                    {% elif  upload['status'] == 'PENDENTE' %}
-                        <i class="fas fa-hourglass-half fa-spin text-warning"></i> Em espera...
-                    {% elif  upload['status'] == 'EXCLUIDO' %}
-                        <i class="fas fa-trash text-secondary"></i> Excluido
-                    {% else %}
-                         <i class="fas fa-sync-alt fa-spin text-primary"></i> Processando...
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <!-- Seção de Uploads -->
+    <div class="uploads-section">
+        <h3 class="section-title">Seus Uploads</h3>
+        <div class="uploads-table">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Arquivo</th>
+                        <th>Status</th>
+                        <th>Data</th>
+                        <th>Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for upload in uploads %}
+                    <tr>
+                        <td class="fw-medium">{{ upload['file_name'] }}</td>
+                        <td>
+                            {% if upload['status'] == 'COMPLETO' %}
+                                <span class="status-badge status-complete">
+                                    <i class="fas fa-check-circle me-1"></i>COMPLETO
+                                </span>
+                            {% elif upload['status'] == 'ERRO' %}
+                                <span class="status-badge status-error">
+                                    <i class="fas fa-exclamation-circle me-1"></i>ERRO
+                                </span>
+                            {% elif upload['status'] == 'CANCELADO' %}
+                                <span class="status-badge status-cancelled">
+                                    <i class="fas fa-ban me-1"></i>CANCELADO
+                                </span>
+                            {% elif upload['status'] == 'PENDENTE' %}
+                                <span class="status-badge status-pending">
+                                    <i class="fas fa-hourglass-half me-1"></i>PENDENTE
+                                </span>
+                            {% elif upload['status'] == 'EXCLUIDO' %}
+                                <span class="status-badge status-deleted">
+                                    <i class="fas fa-trash me-1"></i>EXCLUIDO
+                                </span>
+                            {% else %}
+                                <span class="status-badge status-processing">
+                                    <i class="fas fa-sync-alt fa-spin me-1"></i>PROCESSANDO
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted">{{ upload['created_at'] }}</td>
+                        <td>
+                            {% if upload['status'] == 'COMPLETO' %}
+                                <div class="action-buttons">
+                                    <a href="{{ url_for('apf.download_result', base_name=upload['base_name']) }}" 
+                                       class="btn-action btn-download">
+                                        <i class="fas fa-download me-1"></i>Download
+                                    </a>
+                                    <form method="POST" 
+                                          action="{{ url_for('apf.delete_result', base_name=upload['base_name']) }}" 
+                                          style="display:inline;" 
+                                          onsubmit="return confirm('Deseja excluir este resultado?');">
+                                        <button type="submit" class="btn-action btn-delete">
+                                            <i class="fas fa-trash me-1"></i>Excluir
+                                        </button>
+                                    </form>
+                                </div>
+                            {% elif upload['status'] == 'PROCESSANDO' or upload['status'] == 'PENDENTE' %}
+                                <span class="text-muted small">
+                                    <i class="fas fa-clock me-1"></i>Aguarde...
+                                </span>
+                            {% else %}
+                                <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
     <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+    <script>
+        // Melhorias no JavaScript para o upload
+        document.getElementById('file-input').addEventListener('change', function(e) {
+            const fileDisplay = document.getElementById('file-display');
+            const uploadBtn = document.getElementById('upload-btn');
+            
+            if (this.files.length > 0) {
+                const fileName = this.files[0].name;
+                fileDisplay.textContent = fileName;
+                fileDisplay.classList.add('has-file');
+                uploadBtn.disabled = false;
+            } else {
+                fileDisplay.textContent = 'Nenhum arquivo selecionado';
+                fileDisplay.classList.remove('has-file');
+                uploadBtn.disabled = true;
+            }
+        });
+
+        // Feedback visual durante o upload
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const uploadBtn = document.getElementById('upload-btn');
+            uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Enviando...';
+            uploadBtn.disabled = true;
+        });
+    </script>
 {% endblock %}
