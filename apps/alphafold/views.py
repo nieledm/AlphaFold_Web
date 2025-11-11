@@ -149,7 +149,7 @@ def download_result(base_name):
         ssh = get_ssh_connection()
 
         sftp = ssh.open_sftp()
-        remote_folder = f"{ALPHAFOLD_OUTPUT_BASE}/{user_name.replace(' ', '')}/{base_name}/alphafold_prediction"
+        remote_folder = f"{ALPHAFOLD_OUTPUT_BASE}/{user_name.replace(' ', '')}/{base_name}/AlphaFold_Prediction"
 
         try:
             remote_files = sftp.listdir(remote_folder)
