@@ -20,11 +20,28 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 5000);
     });
 
-    // Melhorar a experiência do upload
+    // Controle do file input
     const fileInput = document.getElementById('file-input');
-    const fileDisplay = document.getElementById('file-display');
+    const fileDisplay = document.getElementById('filename-display'); // Agora é o input
+    const uploadBtn = document.getElementById('upload-btn');
 
     if (fileInput && fileDisplay) {
+        // Event listener para change (seleção normal)
+        fileInput.addEventListener('change', function(e) {
+            if (this.files.length > 0) {
+                const fileName = this.files[0].name;
+                fileDisplay.value = fileName;
+                fileDisplay.classList.add('has-file');
+                uploadBtn.disabled = false;
+            } else {
+                fileDisplay.value = '';
+                fileDisplay.placeholder = 'Nenhum arquivo selecionado';
+                fileDisplay.classList.remove('has-file');
+                uploadBtn.disabled = true;
+            }
+        });
+
+        // Drag & drop functionality
         fileInput.addEventListener('dragenter', function(e) {
             e.preventDefault();
             fileDisplay.style.borderColor = '#07b4b1';
@@ -53,4 +70,12 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
         });
     }
+
+    // Feedback visual durante o upload
+    document.querySelector('form').addEventListener('submit', function(e) {
+        if (uploadBtn && !uploadBtn.disabled) {
+            uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Enviando...';
+            uploadBtn.disabled = true;
+        }
+    });
 });
