@@ -1,8 +1,8 @@
 from flask import request, g, jsonify
 from database import get_db_connection, init_db
-
+from threading import Thread
+from apps.monitor.utils import job_manager_loop
 from config import app
-
 from datetime import datetime
 
 # ==============================================================
@@ -59,6 +59,21 @@ def check_status():
     conn.close()
     return jsonify({'status': status[0] if status else 'DESCONHECIDO'})
 
+# ==============================================================
+# GERENCIADOR DE JOBS (fila AlphaFold)
+# ==============================================================
+
+def start_job_manager():
+    """Inicia o loop do gerenciador de jobs em thread separada"""
+    t = Thread(target=job_manager_loop, daemon=True)
+    t.start()
+    print("[JobManager] Loop de gerenciamento iniciado em background.")
+
+# Inicia o gerenciador de jobs antes do app
+start_job_manager()
+# ==============================================================
+
 if __name__ == '__main__':
     init_db()
+    start_job_manager()  # inicia o loop antes do servidor Flask
     app.run(debug=True, host='0.0.0.0', port=5055)

@@ -60,6 +60,17 @@ def run_alphafold_in_background(cmd, user_name, user_email, base_name, user_id):
 
             stdin, stdout, stderr = ssh.exec_command(cmd)
 
+            # Após iniciar o docker, atualiza o status no banco para PROCESSANDO
+            conn = get_db_connection()
+            conn.execute(
+                "UPDATE uploads SET status = ? WHERE base_name = ? AND user_id = ?",
+                ("PROCESSANDO", base_name, user_id)
+            )
+            conn.commit()
+            conn.close()
+
+            log_action(user_id, 'Status Atualizado', f'{base_name} -> PROCESSANDO')
+
             # -------------- LOG EM TEMPO REAL --------------
             stdout_lines = []
             stderr_lines = []

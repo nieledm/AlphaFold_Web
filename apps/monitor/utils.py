@@ -292,7 +292,7 @@ def process_next_job():
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
         try:
-            sssh = get_ssh_connection()
+            ssh = get_ssh_connection()
             ssh.exec_command(f"mkdir -p '{job_output_dir}'")
 
             stdin, stdout, stderr = ssh.exec_command(cmd)
