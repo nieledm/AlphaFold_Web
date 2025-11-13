@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+    <div class="title-container">
+        <h3 class="page-title">
+            <span class="title-highlight">Configurações do Sistema (.env)</span>
+        </h3>
+    </div>
+
+    <!-- Card de Variáveis do Sistema -->
+    <div class="card settings-card">
+        <div class="card-header">
+            <h5 class="card-title">
+                <i class="fas fa-cogs me-2"></i>Variáveis do Sistema
+            </h5>
+            <span class="badge bg-primary">{{ env_vars|length }} variáveis</span>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                Estas são as variáveis de ambiente configuradas no sistema. 
+                Passe o mouse sobre <i class="fas fa-question-circle text-primary"></i> para ver informações sobre cada variável.
+            </div>
+
+            <form method="POST" class="env-form">
+                <div class="table-responsive">
+                    <table class="table table-hover env-table">
+                        <thead>
+                            <tr>
+                                <th width="30%">Chave</th>
+                                <th width="60%">Valor</th>
+                                <th width="10%" class="text-center">Ajuda</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for key, value in env_vars.items() %}
+                            <tr>
+                                <td>
+                                    <div class="env-key-container">
+                                        <label for="env_{{ key }}" class="env-key-label">
+                                            <span class="env-key">{{ key }}</span>
+                                        </label>
+                                        {% if 'PASSWORD' in key or 'SECRET' in key or 'KEY' in key %}
+                                        <i class="fas fa-lock text-warning ms-2"></i>
+                                        {% else %}
+                                        <i class="fas fa-text-height text-info ms-2"></i>
+                                        {% endif %}
+                                  </div>
+                                </td>
+                                <td>
+                                    {% if 'PASSWORD' in key or 'SECRET' in key or 'KEY' in key %}
+                                    <div class="password-field">
+                                        <input type="password" 
+                                               class="form-control password-input"
+                                               id="env_{{ key }}" 
+                                               name="{{ key }}" 
+                                               value="{{ value if value else '' }}"
+                                               placeholder="••••••••">
+                                        <button type="button" class="btn btn-sm btn-toggle-password">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                    {% else %}
+                                    <input type="text" 
+                                           class="form-control"
+                                           id="env_{{ key }}" 
+                                           name="{{ key }}" 
+                                           value="{{ value if value else '' }}"
+                                           placeholder="Digite o valor...">
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                  <span class="env-help" data-bs-toggle="tooltip" 
+                                        title="{{ get_env_description(key) }}">
+                                      <i class="fas fa-question-circle text-primary"></i> <!-- coluna ajuda -->
+                                  </span>
+                              </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted py-4">
+                                    <i class="fas fa-inbox fa-2x mb-3"></i>
+                                    <p>Nenhuma variável de ambiente configurada</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="form-actions mt-4">
+                    <button type="submit" class="btn btn-save">
+                        <i class="fas fa-save me-2"></i>Salvar Todas as Alterações
+                    </button>
+                    <button type="reset" class="btn btn-secondary">
+                        <i class="fas fa-undo me-2"></i>Reverter Alterações
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Card de Legenda -->
+    <div class="card settings-card">
+        <div class="card-header">
+            <h5 class="card-title">
+                <i class="fas fa-key me-2"></i>Legenda
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="legend-item">
+                        <span class="legend-icon text-warning">
+                            <i class="fas fa-lock"></i>
+                        </span>
+                        <div class="legend-text">
+                            <strong>Variável Sensível</strong>
+                            <small class="text-muted">Senhas e chaves secretas</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="legend-item">
+                        <span class="legend-icon text-primary">
+                            <i class="fas fa-question-circle"></i>
+                        </span>
+                        <div class="legend-text">
+                            <strong>Informações</strong>
+                            <small class="text-muted">Passe o mouse para ver detalhes</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="legend-item">
+                        <span class="legend-icon text-info">
+                            <i class="fas fa-text-height"></i>
+                        </span>
+                        <div class="legend-text">
+                            <strong>Texto Normal</strong>
+                            <small class="text-muted">Valores comuns de configuração</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar tooltips do Bootstrap
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Toggle para mostrar/esconder senhas
+    document.querySelectorAll('.btn-toggle-password').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const passwordInput = this.closest('.password-field').querySelector('.password-input');
+            const icon = this.querySelector('i');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+                this.setAttribute('title', 'Ocultar senha');
+            } else {
+                passwordInput.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+                this.setAttribute('title', 'Mostrar senha');
+            }
+            
+            // Atualizar o tooltip
+            const tooltip = bootstrap.Tooltip.getInstance(this);
+            if (tooltip) {
+                tooltip.update();
+            }
+        });
+    });
+
+    // Feedback ao salvar
+    const form = document.querySelector('.env-form');
+    form.addEventListener('submit', function(e) {
+        const saveBtn = this.querySelector('.btn-save');
+        const originalText = saveBtn.innerHTML;
+        
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Salvando...';
+        saveBtn.disabled = true;
+    });
+
+    // Adicionar tooltips aos botões de senha
+    document.querySelectorAll('.btn-toggle-password').forEach(btn => {
+        btn.setAttribute('data-bs-toggle', 'tooltip');
+        btn.setAttribute('title', 'Mostrar senha');
+        new bootstrap.Tooltip(btn);
+    });
+});
+</script>
+{% endblock %}

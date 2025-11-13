@@ -134,17 +134,37 @@
 
       <!-- Botões de ação globais -->
       <div class="builder-container d-flex justify-content-end gap-3 mt-4">       
-        <button type="button" class="btn btn-download" onclick="downloadAllJSON()">
+        <button type="button" class="btn btn-download" onclick="showFilenameModal('download')">
           <i class="fas fa-download me-0.3"></i>Download
         </button>
-        <button type="button" class="btn btn-process" onclick="ProcessJSON()">
+        <button type="button" class="btn btn-process" onclick="showFilenameModal('process')">
           <i class="fas fa-play me-0.3"></i>Processar
         </button>
-        <button type="button" class="btn btn-download-process" onclick="downloadAndProcessJSON()">
+        <button type="button" class="btn btn-download-process" onclick="showFilenameModal('both')">
           Download e processar
         </button>
       </div>
 
+      <!-- Modal para input do nome do arquivo -->
+      <div class="modal fade" id="filenameModal" tabindex="-1" aria-labelledby="filenameModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="filenameModalLabel">Nome do Arquivo</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <label for="filenameInput" class="form-label">Digite o nome do arquivo (sem extensão):</label>
+              <input type="text" class="form-control" id="filenameInput" placeholder="Ex: meu_alphafold_input">
+              <small class="form-text text-muted mt-2">A extensão .json será adicionada automaticamente</small>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+              <button type="button" class="btn btn-primary" onclick="confirmFilename()">Confirmar</button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       
     </div>

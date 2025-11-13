@@ -54,7 +54,13 @@
                 <li>
                     <a href="{{ url_for('logs.view_logs') }}" 
                         class="dropdown-item {% if active_page == 'logs' %}active{% endif %}">
-                        Visualizar Logs
+                        Logs
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('config.settings') }}" 
+                        class="dropdown-item {% if active_page == 'settings' %}active{% endif %}">
+                        Configurações
                     </a>
                 </li>
             </ul>

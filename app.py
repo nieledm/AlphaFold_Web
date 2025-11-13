@@ -4,6 +4,7 @@ from threading import Thread
 from apps.monitor.utils import job_manager_loop
 from config import app
 from datetime import datetime
+from flask_socketio import SocketIO
 
 # ==============================================================
 # DATA E HORÁRIO
@@ -19,7 +20,7 @@ def format_datetime(value, format='%Y-%m-%d %H:%M'):
 app.jinja_env.filters['format_datetime'] = format_datetime
 
 # ==============================================================
-# BLUE PRINTS
+# 📦 BLUE PRINTS
 # ==============================================================
 
 from apps.autentication.views import aut_bp
@@ -43,6 +44,9 @@ app.register_blueprint(admins_bp)
 from apps.users_rotas.views import users_bp
 app.register_blueprint(users_bp)
 
+from apps.configuration.views import config_bp
+app.register_blueprint(config_bp)
+
 # ==============================================================
 # FUNÇÕES DE CONTEXTO E INICIALIZAÇÃO
 # ==============================================================
@@ -60,6 +64,12 @@ def check_status():
     return jsonify({'status': status[0] if status else 'DESCONHECIDO'})
 
 # ==============================================================
+# SOCKET.IO (para atualização em tempo real)
+# ==============================================================
+
+socketio = SocketIO(app, cors_allowed_origins="*")
+
+# ==============================================================
 # GERENCIADOR DE JOBS (fila AlphaFold)
 # ==============================================================
 
@@ -68,12 +78,9 @@ def start_job_manager():
     t = Thread(target=job_manager_loop, daemon=True)
     t.start()
     print("[JobManager] Loop de gerenciamento iniciado em background.")
-
-# Inicia o gerenciador de jobs antes do app
-start_job_manager()
 # ==============================================================
 
 if __name__ == '__main__':
     init_db()
-    start_job_manager()  # inicia o loop antes do servidor Flask
-    app.run(debug=True, host='0.0.0.0', port=5055)
+    start_job_manager()
+    socketio.run(app, debug=True, host='0.0.0.0', port=5055)

@@ -5,21 +5,19 @@ import shlex
 import pytz
 from datetime import datetime
 from database import get_db_connection
-from config import ALPHAFOLD_INPUT_BASE, ALPHAFOLD_OUTPUT_BASE, ALPHAFOLD_PARAMS, ALPHAFOLD_DB
+from config import ALPHAFOLD_INPUT_BASE, ALPHAFOLD_OUTPUT_BASE, ALPHAFOLD_PARAMS, ALPHAFOLD_DB, ALPHAFOLD_PREDICTION, app
 from apps.logs.utils import log_action
 from apps.emails.utils import send_processing_complete_email
 from conections import get_ssh_connection
-
 import os
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # para acessar app.py e database.py diretamente
-
-from database import get_db_connection
 from flask import Flask
 from email.mime.text import MIMEText
+from flask_socketio import SocketIO
 
-from database import get_db_connection
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # ==============================================================
 # JOB MANAGER
@@ -233,8 +231,7 @@ def process_next_job():
                 LIMIT 1
             )
             UPDATE uploads
-            SET status = 'PROCESSANDO',
-                started_at = ?
+            SET status = 'PROCESSANDO'
             WHERE id = (SELECT id FROM next_job)
             RETURNING *;
         """, (now_str,)).fetchone()
@@ -307,7 +304,7 @@ def process_next_job():
             # conn.commit()
             # conn.close()
 
-            remote_cif = f"{job_output_dir}/alphafold_prediction/alphafold_prediction_model.cif"
+            remote_cif = f"{job_output_dir}/{ALPHAFOLD_PREDICTION}/{ALPHAFOLD_PREDICTION}_model.cif"
             stdin, stdout, _ = ssh.exec_command(f'test -f "{remote_cif}" && echo OK || echo NO')
             result = stdout.read().decode().strip()
             

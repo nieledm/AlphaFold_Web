@@ -1,12 +1,45 @@
 from flask import Flask
 from itsdangerous import URLSafeTimedSerializer
 from dotenv import load_dotenv
-import os
+import os, sys
 
 load_dotenv()
 
+# -------------------------------------------------------------
+# 🔍 Verificação de variáveis obrigatórias do .env
+# -------------------------------------------------------------
+
+REQUIRED_VARS = [
+    "SECRET_KEY",
+    "ALPHAFOLD_SSH_HOST",
+    "ALPHAFOLD_SSH_PORT",
+    "ALPHAFOLD_SSH_USER",
+    "ALPHAFOLD_INPUT_BASE",
+    "ALPHAFOLD_OUTPUT_BASE",
+    "ALPHAFOLD_PARAMS",
+    "ALPHAFOLD_DB",
+    "EMAIL_SENDER",
+    "EMAIL_PASSWORD",
+]
+
+missing_vars = [var for var in REQUIRED_VARS if not os.getenv(var)]
+
+if missing_vars:
+    print("❌ Erro: variáveis obrigatórias ausentes no .env:")
+    for var in missing_vars:
+        print(f"   - {var}")
+    print("\nCorrija o arquivo .env antes de iniciar o aplicativo.")
+    sys.exit(1)
+else:
+    print("✅ Todas as variáveis obrigatórias foram carregadas com sucesso.")
+
+# -------------------------------------------------------------
+# 🔧 Configuração do app Flask
+# -------------------------------------------------------------
+
 app = Flask(__name__)
-app.secret_key = '#!Alph@3!'
+SECRET_KEY = os.getenv('SECRET_KEY')
+app.secret_key = SECRET_KEY
 
 # Configurações AlphaFold
 ALPHAFOLD_SSH_HOST = os.getenv("ALPHAFOLD_SSH_HOST")
@@ -17,6 +50,9 @@ ALPHAFOLD_INPUT_BASE = os.getenv("ALPHAFOLD_INPUT_BASE")
 ALPHAFOLD_OUTPUT_BASE = os.getenv("ALPHAFOLD_OUTPUT_BASE")
 ALPHAFOLD_PARAMS = os.getenv("ALPHAFOLD_PARAMS")
 ALPHAFOLD_DB = os.getenv("ALPHAFOLD_DB")
+
+
+ALPHAFOLD_PREDICTION=os.getenv("ALPHAFOLD_PREDICTION") # Diretório padrão para salvar predições
 
 # Configurações de e-mail
 EMAIL_SENDER = os.getenv("EMAIL_SENDER")

@@ -1,13 +1,13 @@
 from flask import render_template, redirect, url_for, flash, request, session, g, send_file
 from threading import Thread
 from datetime import datetime
-import os, io, json, pytz, tempfile, zipfile, paramiko, stat, shlex, pwd, grp
+import os, io, json, pytz, tempfile, zipfile, paramiko, stat, shlex#, pwd, grp
 from database import get_db_connection
 from conections import get_ssh_connection
 
 from apps.logs.utils import log_action
 from apps.autentication.utils import admin_required, login_required
-from config import ALPHAFOLD_INPUT_BASE, ALPHAFOLD_OUTPUT_BASE, ALPHAFOLD_PARAMS, ALPHAFOLD_DB
+from config import ALPHAFOLD_INPUT_BASE, ALPHAFOLD_OUTPUT_BASE, ALPHAFOLD_PARAMS, ALPHAFOLD_DB, ALPHAFOLD_PREDICTION
 
 from .utils import run_alphafold_in_background
 
@@ -23,114 +23,6 @@ def builder_json_form():
     return render_template('builder_json_form.html',
                             nome_usuario=session.get('user_name', 'Usuário'),
                             active_page='json_builder')
-
-# @apf_bp.route('/upload', methods=['POST'])
-# def upload_file():
-#     """Processa upload de arquivos para o AlphaFold"""
-#     user_id = session.get('user_id')
-#     user_name = session.get('user_name', 'Usuário Desconhecido')
-#     user_email = session.get('user_email', 'Email Desconhecido')
-
-#     dict(session)
-#     #Time Zone e data
-#     tz = pytz.timezone('America/Sao_Paulo')
-#     now = datetime.now(tz)
-#     now_str = now.strftime('%Y-%m-%d %H:%M:%S')
-
-#     if not all(key in session for key in ['user_id', 'user_name', 'user_email']):
-#         flash('Por favor, faça login novamente.', 'warning')
-#         log_action(None, 'Tentativa de Upload (Sessão Inválida)', 'Usuário desconhecido ou sessão expirada')
-#         return redirect(url_for('aut.login'))
-    
-#     log_action(user_id, 'Início de Upload de Arquivo', f'Usuário: {user_name}')
-
-#     if 'file' not in request.files:
-#         flash('Nenhum arquivo enviado.', 'danger')
-#         log_action(user_id, 'Erro de Upload', 'Nenhum arquivo na requisição')
-#         return 'No file part'
-
-#     file = request.files['file']
-#     if file.filename == '':
-#         flash('Nenhum arquivo selecionado.', 'danger')
-#         log_action(user_id, 'Erro de Upload', 'Nome de arquivo vazio')
-#         return 'No selected file'
-
-#     if file and file.filename.endswith('.json'):
-#         filename = file.filename
-#         base_name = filename.rsplit('.', 1)[0]
-
-#         # Conexão SSH
-#         ssh = paramiko.SSHClient()
-#         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-#         ssh = get_ssh_connection()
-
-#         sftp = ssh.open_sftp()
-
-#         user_name = session['user_name'].replace(' ', '')
-#         user_email = session['user_email']
-#         user_id = session['user_id']
-
-#         input_subdir = os.path.join(ALPHAFOLD_INPUT_BASE, user_name)
-#         output_user_dir = os.path.join(ALPHAFOLD_OUTPUT_BASE, user_name)
-#         output_subdir = os.path.join(output_user_dir, base_name)
-
-#         # Cria diretórios para input e output caso não existam
-#         input_path_ssh = shlex.quote(input_subdir)
-#         output_path_ssh = shlex.quote(output_user_dir)
-#         output_subdir_ssh = shlex.quote(output_subdir)
-
-#         mkdir_command = f"mkdir -p {input_path_ssh} {output_path_ssh} {output_subdir_ssh}"
-#         stdin, stdout, stderr = ssh.exec_command(mkdir_command)
-#         exit_status = stdout.channel.recv_exit_status()
-#         if exit_status != 0:
-#             error = stderr.read().decode()
-#             raise RuntimeError(f"Erro criando diretórios: {error}")
-
-#         # Salva arquivo
-#         input_file_path = os.path.join(input_subdir, filename)
-#         # file.save(input_file_path)
-#         sftp.putfo(file.stream, input_file_path)
-
-#         sftp.close()
-#         ssh.close()
-
-#         # Salva no banco
-#         conn = get_db_connection()
-#         conn.execute(
-#             'INSERT INTO uploads (user_id, file_name, base_name, status, created_at) VALUES (?, ?, ?, ?, ?)',
-#             (session['user_id'], filename, base_name, 'PENDENTE', now_str)
-#         )
-#         conn.commit()
-#         conn.close()
-
-#         log_action(user_id, 'Arquivo JSON Uploaded', f'Nome: {filename}, BaseName: {base_name}')
-
-#         uid = 0  # root
-#         gid = grp.getgrnam("alphaFoldWeb").gr_gid
-
-#         # Monta comando e roda em background
-#         command = (
-#             f"docker run "
-#             f"--user {uid}:{gid} "
-#             f"--volume {input_subdir}:/root/af_input "
-#             f"--volume {output_user_dir}:/root/af_output "
-#             f"--volume {ALPHAFOLD_PARAMS}:/root/models "
-#             f"--volume {ALPHAFOLD_DB}:/root/public_databases "
-#             f"--gpus all alphafold3 "
-#             f"python run_alphafold.py "
-#             f"--json_path=/root/af_input/{filename} "
-#             f"--output_dir=/root/af_output/{base_name} "
-#         )
-       
-#         Thread(target=run_alphafold_in_background, args=(
-#             command, user_name, user_email, base_name, user_id
-#         )).start()
-                
-#         flash("Arquivo enviado. Você será notificado quando o processamento terminar.", 'info')
-#         log_action(user_id, 'Processamento AlphaFold Iniciado', f'BaseName: {base_name}')
-#         return redirect(url_for('users.dashboard'))
-
-#     return 'Invalid file format'
 
 @apf_bp.route('/upload', methods=['POST'])
 def upload_file():
@@ -236,12 +128,12 @@ def upload_file():
     log_action(user_id, 'Arquivo JSON Uploaded', f'Nome: {filename}, BaseName: {base_name}')
 
     uid = 0  # root
-    gid = grp.getgrnam("alphaFoldWeb").gr_gid
+    # gid = grp.getgrnam("alphaFoldWeb").gr_gid
 
     # Monta comando e roda em background
     command = (
         f"docker run "
-        f"--user {uid}:{gid} "
+        # f"--user {uid}:{gid} "
         f"--volume {input_subdir}:/root/af_input "
         f"--volume {output_user_dir}:/root/af_output "
         f"--volume {ALPHAFOLD_PARAMS}:/root/models "
@@ -277,7 +169,7 @@ def download_result(base_name):
         ssh = get_ssh_connection()
 
         sftp = ssh.open_sftp()
-        remote_folder = f"{ALPHAFOLD_OUTPUT_BASE}/{user_name.replace(' ', '')}/{base_name}/AlphaFold_Prediction"
+        remote_folder = f"{ALPHAFOLD_OUTPUT_BASE}/{user_name.replace(' ', '')}/{base_name}/{ALPHAFOLD_PREDICTION}"
 
         try:
             remote_files = sftp.listdir(remote_folder)

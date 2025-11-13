@@ -5,6 +5,11 @@ const sequenceHelp = document.getElementById('sequenceHelp');
 const entityType = document.getElementById('entityType');
 const sequenceField = document.getElementById('sequence');
 
+// Variáveis globais para controlar o modal de filename
+let filenameModal = null;
+let pendingAction = null; // 'download', 'process', ou 'both'
+let pendingJsonData = null;
+
 const examples = {
     protein: {
         seq: "MVQDTGKDTNLKGTAEANESVVYCDVFMQAALKEATCALEEGEVPVGCVLVKADSSTAAQAQAGDDLALQKLIVARGRNATNRKGHGLAHAEFVAVEELLRQATAGTSENIGGGGNSGAVSQDLADYVLYVVVEPCIMCAAMLLYNRVRKVYFGCTNPRFGGNGTVLSVHNSYKGCSGEDAALIGYESCGGYRAEEAVVLLQQFYRRENTNAPLGKRKRKD",
@@ -282,17 +287,27 @@ function validateSequence(entityType, sequence) {
  * FUNÇÕES DE CONSTRUÇÃO DE ENTIDADES
  ************************************/
 // Gera IDs para as cópias da entidade (A, B, C...)
-function generateEntityIDs(index, copies) {
-  const baseCharCode = 65 + (index % 26); // A-Z
-  const prefix = index >= 26 ? String.fromCharCode(65 + Math.floor(index / 26) - 1) : '';
+function generateEntityIDs(startIndex, copies) {
+  const result = [];
   
-  if (copies === 1) {
-      return prefix + String.fromCharCode(baseCharCode);
+  for (let i = 0; i < copies; i++) {
+      const totalIndex = startIndex + i;
+      
+      // Calcula letra(s) (A-Z, AA-AZ, BA-BZ, etc.)
+      let id = '';
+      let num = totalIndex;
+      
+      // Gera IDs em base-26: A, B, C, ..., Z, AA, AB, ..., AZ, BA, ...
+      do {
+          id = String.fromCharCode(65 + (num % 26)) + id;
+          num = Math.floor(num / 26) - 1;
+      } while (num >= 0);
+      
+      result.push(id);
   }
   
-  return Array.from({ length: copies }, (_, i) => 
-      prefix + String.fromCharCode(baseCharCode + (i % 26))
-      .slice(0, copies));
+  // Retorna como string se uma cópia, ou array se múltiplas
+  return copies === 1 ? result[0] : result;
 }
 
 // Constrói objeto para entidade de proteína
@@ -449,7 +464,7 @@ function buildIonEntity(ids, sequence) {
  *************************************/
 
 // Processa um card individual para extrair os dados da entidade
-function processEntityCard(card, index) {
+function processEntityCard(card, index, totalCopiesBefore = 0) {
   const entityType = card.querySelector('.entity-type').value;
   const copies = parseInt(card.querySelector('.copies').value) || 1;
   const sequence = card.querySelector('.sequence').value.trim();
@@ -467,7 +482,8 @@ function processEntityCard(card, index) {
   }
 
   // Gerar IDs para as cópias (A, B, C... ou AA, AB, etc. se muitas cópias)
-  const ids = generateEntityIDs(index, copies);
+  // Passando o total de cópias que vieram antes deste card
+  const ids = generateEntityIDs(totalCopiesBefore, copies);
 
   // Construir o objeto da entidade baseado no tipo
   let entity = {};
@@ -500,15 +516,20 @@ function generateAllJSON() {
   const entities = [];
   let hasErrors = false;
   const allSeeds = new Set();
+  let totalCopiesBefore = 0; // Rastreia o total de cópias antes do card atual
 
   // Processar cada card/entidade
   cards.forEach((card, index) => {
-      const entity = processEntityCard(card, index);
+      const entity = processEntityCard(card, index, totalCopiesBefore);
       if (entity.error) {
           hasErrors = true;
           alert(`Erro na Entidade #${index + 1}: ${entity.error}`);
       } else {
           entities.push(entity);
+          
+          // Atualiza o total de cópias para o próximo card
+          const copies = parseInt(card.querySelector('.copies').value) || 1;
+          totalCopiesBefore += copies;
 
           const seedInput = card.querySelector('.seeds');
             if (seedInput) {
@@ -545,6 +566,86 @@ function generateAllJSON() {
 /*****************************
  * FUNÇÕES DE DOWNLOAD E ENVIO
  *****************************/
+
+// Mostra o modal para o usuário digitar o nome do arquivo
+function showFilenameModal(action) {
+  pendingAction = action;
+  const jsonData = generateAndValidateJSON();
+  
+  if (!jsonData) return;
+  
+  pendingJsonData = jsonData;
+  
+  // Inicializa o modal se não tiver sido feito ainda
+  if (!filenameModal) {
+    const modalElement = document.getElementById('filenameModal');
+    filenameModal = new bootstrap.Modal(modalElement);
+  }
+  
+  // Limpa o input e adiciona um placeholder com sugestão
+  const filenameInput = document.getElementById('filenameInput');
+  const now = new Date();
+  const pad = (n) => n.toString().padStart(2, '0');
+  const defaultName = `alphafold_input_${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  
+  filenameInput.value = '';
+  filenameInput.placeholder = defaultName;
+  
+  // Abre o modal
+  filenameModal.show();
+  
+  // Coloca o foco no input
+  filenameInput.focus();
+}
+
+// Confirma o nome do arquivo e executa a ação pendente
+function confirmFilename() {
+  const filenameInput = document.getElementById('filenameInput');
+  let filename = filenameInput.value.trim();
+  
+  // Se o usuário não digitou nada, usa o placeholder
+  if (!filename) {
+    filename = filenameInput.placeholder;
+  }
+  
+  // Remove caracteres inválidos do nome do arquivo
+  filename = filename.replace(/[<>:"|?*\/\\]/g, '_').replace(/\s+/g, '_');
+  
+  // Fecha o modal
+  if (filenameModal) {
+    filenameModal.hide();
+  }
+  
+  // Executa a ação pendente
+  switch (pendingAction) {
+    case 'download':
+      downloadJSON(pendingJsonData, filename);
+      break;
+    case 'process':
+      ProcessJSONWithName(filename);
+      break;
+    case 'both':
+      downloadAndProcessJSONWithName(filename);
+      break;
+  }
+  
+  // Limpa as variáveis
+  pendingAction = null;
+  pendingJsonData = null;
+}
+
+// Permite confirmar ao pressionar Enter no input
+document.addEventListener('DOMContentLoaded', function() {
+  const filenameInput = document.getElementById('filenameInput');
+  if (filenameInput) {
+    filenameInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        confirmFilename();
+      }
+    });
+  }
+});
+
 // Função para download do JSON
 function generateAndValidateJSON() {
   const jsonData = generateAllJSON();
@@ -583,11 +684,17 @@ function downloadJSON(jsonData, baseFilename = 'alphafold_input') {
   const day = pad(now.getDate());
   const hours = pad(now.getHours());
   const minutes = pad(now.getMinutes());
-  const seconds = pad(now.getSeconds());
   const timestamp = `${year}-${month}-${day}_${hours}-${minutes}`;
   
-  // Cria o nome do arquivo com timestamp
-  const filename = `${baseFilename}_${timestamp}.json`;
+  // Cria o nome do arquivo com timestamp (se não tiver underscore no nome, adiciona um antes do timestamp)
+  let filename;
+  if (baseFilename === 'alphafold_input') {
+    // Nome padrão
+    filename = `${baseFilename}_${timestamp}.json`;
+  } else {
+    // Nome customizado pelo usuário - adiciona timestamp antes da extensão
+    filename = `${baseFilename}_${timestamp}.json`;
+  }
 
   //criar o blob para download
   const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
@@ -603,9 +710,7 @@ function downloadJSON(jsonData, baseFilename = 'alphafold_input') {
 }
 
 function downloadAllJSON() {
-  const jsonData = generateAndValidateJSON();
-  if (!jsonData) return;
-  downloadJSON(jsonData);
+  showFilenameModal('download');
 }
 
 // function ProcessJSON() {
@@ -627,12 +732,17 @@ function downloadAllJSON() {
 // }
 
 function ProcessJSON() {
-  const jsonData = generateAndValidateJSON();
+  showFilenameModal('process');
+}
+
+function ProcessJSONWithName(filename) {
+  const jsonData = pendingJsonData;
   if (!jsonData) return;
 
   // Enviar via FormData
   const formData = new FormData();
   formData.append('json_data', JSON.stringify(jsonData, null, 2));
+  formData.append('filename', filename);
   
   fetch('/upload', {
     method: 'POST',
@@ -652,15 +762,20 @@ function ProcessJSON() {
 }
 
 function downloadAndProcessJSON() {
-  const jsonData = generateAndValidateJSON();
+  showFilenameModal('both');
+}
+
+function downloadAndProcessJSONWithName(filename) {
+  const jsonData = pendingJsonData;
   if (!jsonData) return;
 
   // Primeiro faz o download
-  downloadJSON(jsonData);
+  downloadJSON(jsonData, filename);
   
   // Depois envia para o servidor
   const formData = new FormData();
   formData.append('json_data', JSON.stringify(jsonData, null, 2));
+  formData.append('filename', filename);
   
   fetch('/upload', {
     method: 'POST',

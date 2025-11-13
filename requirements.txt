@@ -7,3 +7,5 @@ paramiko
 werkzeug
 itsdangerous
 python-dotenv
+flask-socketio
+eventlet
