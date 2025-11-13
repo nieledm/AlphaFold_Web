@@ -69,6 +69,10 @@ def check_status():
 
 socketio = SocketIO(app, cors_allowed_origins="*")
 
+# Importa e registra os eventos do Socket.IO
+from apps.monitor.socket_events import register_socketio_handlers
+register_socketio_handlers(socketio)
+
 # ==============================================================
 # GERENCIADOR DE JOBS (fila AlphaFold)
 # ==============================================================

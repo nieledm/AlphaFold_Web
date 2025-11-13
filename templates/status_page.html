@@ -198,7 +198,7 @@
                     <div class="col-md-6 p-3 border-end">
                         <div class="processing-section h-100">
                             <div class="text-center mb-3">
-                                <h3 class="text-primary stat-number">{{ running_count }}</h3>
+                                <h3 class="text-primary stat-number" id="running-count">{{ running_count }}</h3>
                                 <p class="mb-3"><i class="fas fa-cogs"></i> Processando</p>
                             </div>
                             {% if running_count > 0 %}
@@ -251,7 +251,7 @@
                     <div class="col-md-6 p-3">
                         <div class="processing-section h-100">
                             <div class="text-center mb-3">
-                                <h3 class="text-warning stat-number">{{ pending_jobs_list|length }}</h3>
+                                <h3 class="text-warning stat-number" id="pending-count">{{ pending_jobs_list|length }}</h3>
                                 <p class="mb-3"><i class="fas fa-hourglass-half"></i> Na Fila</p>
                             </div>
                             {% if pending_jobs_list|length > 0 %}
@@ -317,5 +317,8 @@
             window.gpuData = {{ status.gpu | tojson }};
         </script>
     {% endif %}
+    <!-- Socket.IO para atualização em tempo real -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/socket_status_client.js') }}"></script>
     <script src="{{ url_for('static', filename='js/status.js') }}"></script>
 {% endblock %}

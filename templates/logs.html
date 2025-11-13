@@ -65,7 +65,9 @@
 
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-light d-flex justify-content-between align-items-center">
-            <h5 class="mb-0"><i class="bi bi-list-check me-2"></i>Registros</h5>
+            <h5 class="mb-0">
+                <i class="bi bi-list-check me-2"></i>Registros
+            </h5>
             <div class="d-flex gap-2">
                 <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#clearLogsModal">
                     <i class="bi bi-trash me-1"></i> Limpar
@@ -76,10 +78,11 @@
             </div>
         </div>
         <div class="card-body">
+            <div id="logs-error-container"></div>
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <span class="logs-counter text-muted">
                     <i class="bi bi-info-circle"></i>
-                    Mostrando {{ logs|length }} de {{ total_logs }} registros
+                    Mostrando {{ logs|length }} registros
                 </span>
                 <a href="{{ url_for('logs.view_logs') }}" class="btn btn-sm btn-outline-secondary">
                     <i class="bi bi-arrow-counterclockwise me-1"></i> Limpar filtros
@@ -242,6 +245,9 @@
 
 {% block scripts %}
     {{ super() }}
+    <!-- Socket.IO para atualização em tempo real dos logs -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/socket_logs_client.js') }}"></script>
     <script src="{{ url_for('static', filename='js/logs.js') }}"></script>
     <script>
         // Ativar tooltips

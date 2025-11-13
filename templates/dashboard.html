@@ -51,7 +51,10 @@
     
     <!-- Seção de Uploads -->
     <div class="uploads-section">
-        <h3 class="section-title">Seus Uploads</h3>
+        <h3 class="section-title">
+            Seus Uploads
+        </h3>
+        <div id="jobs-error-container"></div>
         <div class="uploads-table">
             <table class="table table-hover">
                 <thead>
@@ -64,7 +67,7 @@
                 </thead>
                 <tbody>
                     {% for upload in uploads %}
-                    <tr>
+                    <tr class="job-row" data-base-name="{{ upload['base_name'] }}">
                         <td class="fw-medium">{{ upload['file_name'] }}</td>
                         <td>
                             {% if upload['status'] == 'COMPLETO' %}
@@ -154,4 +157,8 @@
             uploadBtn.disabled = true;
         });
     </script>
+    
+    <!-- Socket.IO para atualização em tempo real dos jobs -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/socket_dashboard_client.js') }}"></script>
 {% endblock %}

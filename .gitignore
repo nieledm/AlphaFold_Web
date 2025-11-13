@@ -7,3 +7,5 @@ database.db
 # Ignorar arquivos pyc e __pycache__
 *.pyc
 __pycache__/
+
+SOCKET_IO_SETUP.md

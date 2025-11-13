@@ -831,14 +831,42 @@ function initEntityTypeListener(card) {
     }
   };
 
+  // Flag para saber se o campo contém atualmente um exemplo
+  let hasExample = false;
+
   entityType.addEventListener('change', function() {
     const selected = this.value;
     if (examples[selected]) {
       sequenceField.value = examples[selected].seq;
+      hasExample = true;
       sequenceHelp.textContent = examples[selected].warn;
       sequenceHelp.style.display = 'block';
     } else {
       sequenceHelp.style.display = 'none';
+      hasExample = false;
+    }
+  });
+
+  // Listener para digitar - limpa o exemplo na primeira alteração
+  sequenceField.addEventListener('input', function() {
+    if (hasExample) {
+      // Limpa o campo na primeira alteração
+      this.value = '';
+      hasExample = false;
+    }
+  });
+
+  // Listener para cole (paste) - limpa o exemplo e substitui pelo conteúdo colado
+  sequenceField.addEventListener('paste', function(e) {
+    if (hasExample) {
+      hasExample = false;
+      // setTimeout garante que o paste foi processado
+      setTimeout(() => {
+        // A textarea já terá o conteúdo colado
+        if (this.value.trim()) {
+          hasExample = false;
+        }
+      }, 0);
     }
   });
 }

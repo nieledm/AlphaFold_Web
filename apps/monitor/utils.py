@@ -230,11 +230,11 @@ def process_next_job():
                 ORDER BY grouped.first_job_time ASC
                 LIMIT 1
             )
-            UPDATE uploads
-            SET status = 'PROCESSANDO'
-            WHERE id = (SELECT id FROM next_job)
-            RETURNING *;
-        """, (now_str,)).fetchone()
+                UPDATE uploads
+                SET status = 'PROCESSANDO'
+                WHERE id = (SELECT id FROM next_job)
+                RETURNING *;
+            """ ).fetchone()
 
         conn.commit()
 
@@ -315,7 +315,7 @@ def process_next_job():
                 log_action(user_id, "Job concluído com sucesso", base_name)
             else:
                 error_msg = stderr.read().decode().strip()
-                conn.execute("UPDATE uploads SET status = 'ERRO', details = ? WHERE id = ?", error_msg, (job["id"],))
+                conn.execute("UPDATE uploads SET status = 'ERRO', details = ? WHERE id = ?", (error_msg, job["id"]))
                 log_action(user_id, "Erro no job", f"{base_name} - exit {exit_status}, exists={result}")
             conn.commit()
             conn.close()
