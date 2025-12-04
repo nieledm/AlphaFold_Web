@@ -713,24 +713,6 @@ function downloadAllJSON() {
   showFilenameModal('download');
 }
 
-// function ProcessJSON() {
-//   const jsonData = generateAndValidateJSON();
-//   if (!jsonData) return;
-
-//   // Session Storage para transferencia do arquivo JSON gerado
-//   sessionStorage.setItem('alphafoldJsonData', JSON.stringify(jsonData));
-//   window.location.href = '/dashboard';
-// }
-
-// function downloadAndProcessJSON() {
-//   const jsonData = generateAndValidateJSON();
-//   if (!jsonData) return;
-
-//   downloadJSON(jsonData);
-//   sessionStorage.setItem('alphafoldJsonData', JSON.stringify(jsonData));
-//   window.location.href = '/dashboard';
-// }
-
 function ProcessJSON() {
   showFilenameModal('process');
 }

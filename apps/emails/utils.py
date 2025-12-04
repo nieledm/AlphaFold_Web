@@ -95,10 +95,23 @@ def send_processing_complete_email(user_name, user_email, base_name, user_id):
         <body>
             <p>Olá {user_name},</p>
             <p>Seu processamento com o AlphaFold foi concluído com sucesso.</p>
-            <p>Você pode baixar o resultado indo ao seu dashboard ou clicando no link abaixo:</p>
-            <p><a href="{download_url}">Download do resultado</a></p>
+            <p>Você pode baixar o resultado indo ao seu dashboard</p>
             <p>Obrigado por usar o sistema AlphaFold!</p>
         </body>
     </html>
     """
     send_email(user_email, "AlphaFold: Resultado disponível", html)
+
+def send_sceduler_job_email(user_name, user_email, base_name, job_id):
+    """Envia e-mail ao usuário informando que o job foi agendado"""
+    html = f"""
+    <html>
+        <body>
+            <p>Olá {user_name},</p>
+            <p>Seu job '{base_name}' foi agendado com sucesso no sistema AlphaFold.</p>
+            <p>ID do Job: {job_id}</p>
+            <p>Você será notificado quando o processamento for concluído.</p>
+        </body>
+    </html>
+    """
+    send_email(user_email, "AlphaFold: Job agendado com sucesso", html)

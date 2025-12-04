@@ -18,6 +18,9 @@
         </button>
       </div>
 
+      <!-- SEÇÃO DE UPLOAD CSV (será adicionada automaticamente pelo JavaScript) -->
+      <div id="csv-upload-section"></div>
+
       <div id="cards-container">
         <!-- Card padrão (primeira entidade) -->
         <div class="form-card" id="card-1">
@@ -166,6 +169,11 @@
         </div>
       </div>
 
+      <!-- Modal para preview do CSV (será criado dinamicamente) -->
+      <div id="csvPreviewModal"></div>
+      
+      <!-- Modal para progresso (será criado dinamicamente) -->
+      <div id="progressModal"></div>
       
     </div>
   </div>
@@ -174,4 +182,5 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/builder_json_form.js') }}"></script>
+<script src="{{ url_for('static', filename='js/csv_processor.js') }}"></script>
 {% endblock %}

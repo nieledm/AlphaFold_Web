@@ -3,7 +3,7 @@ import threading
 import time
 import shlex
 import pytz
-from datetime import datetime
+from datetime import datetime, timedelta
 from database import get_db_connection
 from config import ALPHAFOLD_INPUT_BASE, ALPHAFOLD_OUTPUT_BASE, ALPHAFOLD_PARAMS, ALPHAFOLD_DB, ALPHAFOLD_PREDICTION, app
 from apps.logs.utils import log_action
@@ -13,14 +13,17 @@ import os
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # para acessar app.py e database.py diretamente
-from flask import Flask
+from flask import Flask, current_app
 from email.mime.text import MIMEText
+import subprocess
+import sqlite3
 from flask_socketio import SocketIO
+from slurm.utils import run_remote_cmd
 
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # ==============================================================
-# JOB MANAGER
+# SISTEMA DE MONITORAMENTO
 # ==============================================================
 
 def get_system_status(host, port, user):
@@ -35,7 +38,8 @@ def get_system_status(host, port, user):
         "cpu_usage": "top -bn1 | grep 'Cpu(s)'",
         "mem": "free -h",
         "gpu": "nvidia-smi --query-gpu=name,memory.total,memory.free,utilization.gpu,utilization.memory --format=csv,noheader,nounits",
-        "disk": "df -h /str1"
+        "disk": "df -h /str1",
+        "slurm_queue": "squeue -o '%i|%u|%j|%T|%b|%C|%m|%L' --noheader"
     }
 
 
@@ -107,7 +111,7 @@ def parse_system_status(raw_status):
                 break        
         parsed['mem'] = mem_info
         
-        # Parse GPU atualizado
+        # Parse GPU
         gpu_raw = raw_status.get('gpu', '')
         gpu_lines = gpu_raw.split('\n')
         gpu_parsed = []
@@ -140,6 +144,11 @@ def parse_system_status(raw_status):
             'header': disk_header,
             'rows': disk_rows
         }
+
+        # Parse Fila Slurm
+        slurm_raw = raw_status.get('slurm_queue', '')
+        if slurm_raw:
+            parsed['slurm_queue'] = parse_slurm_queue_output(slurm_raw)
         
     except Exception as e:
         print(f"Erro geral ao parsear status: {e}")
@@ -160,188 +169,359 @@ def convert_mem_unit(value):
     except:
         return 0.0
 
+def parse_slurm_queue_output(output):
+    """Parseia output do comando squeue"""
+    jobs = []
+    lines = output.strip().split('\n')
+    
+    for line in lines:
+        parts = line.split('|')
+        if len(parts) >= 8:
+            jobs.append({
+                'job_id': parts[0],
+                'user': parts[1],
+                'name': parts[2],
+                'state': parts[3],
+                'gres': parts[4],
+                'cpus': parts[5],
+                'mem': parts[6],
+                'time': parts[7]
+            })
+    
+    return jobs
+
 def get_job_counts():
+    """Obtém contagem de jobs por status"""
     conn = get_db_connection()
-    running = conn.execute("SELECT COUNT(*) FROM uploads WHERE status = 'PROCESSANDO'").fetchone()[0]
-    pending = conn.execute("SELECT COUNT(*) FROM uploads WHERE status = 'PENDENTE'").fetchone()[0]
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT status, COUNT(*) as count 
+        FROM uploads 
+        GROUP BY status
+    """)
+    counts = dict(cursor.fetchall())
     conn.close()
-    return running, pending
+    
+    # Calcular contadores esperados
+    running_count = counts.get('PROCESSANDO', 0)
+    pending_count = counts.get('PENDENTE', 0)
+    
+    # Retorna os dois valores esperados
+    return running_count, pending_count
+    
 
 def get_pending_jobs():
+    """Obtém lista de jobs pendentes"""
     conn = get_db_connection()
-    jobs = conn.execute("""
-        SELECT uploads.base_name, uploads.created_at, users.name 
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT uploads.id, uploads.base_name, uploads.job_id, uploads.created_at, users.name 
         FROM uploads 
         JOIN users ON uploads.user_id = users.id 
         WHERE uploads.status = 'PENDENTE' 
         ORDER BY uploads.created_at ASC
-    """).fetchall()
+    """)
+    
+    jobs = cursor.fetchall()
     conn.close()
-    return jobs  
+    
+    return [dict(zip(['id', 'base_name', 'job_id', 'created_at', 'user_name'], job)) for job in jobs] 
 
 # ==============================================================
-# JOB MANAGER
+# MONITOR SLURM
 # ==============================================================
 
-# Funções para ler e alterar a quantidade máxima de container
-def get_max_containers():
-    conn = get_db_connection()
-    row = conn.execute("SELECT value FROM config WHERE key = 'max_containers'").fetchone()
-    conn.close()
-    return int(row['value']) if row else 2
+def get_slurm_job_status(job_id):
+    """Obtém status de um job no Slurm via SSH"""
+    try:
+        cmd_squeue = f"squeue -j {job_id} -o %T --noheader"
+        exit_code, out_squeue, _ = run_remote_cmd(cmd_squeue)
+        
+        if exit_code == 0 and out_squeue.strip():
+            return out_squeue.strip()
+        cmd_sacct = f"sacct -j {job_id} -o State --noheader --parsable2"
+        exit_code, out_sacct, _ = run_remote_cmd(cmd_sacct)
+        
+        if exit_code == 0 and out_sacct.strip():
+            states = [s.strip() for s in out_sacct.strip().split('\n') if s.strip()]
+            if states:
+                return states[0].split('+')[0]
+        
+        return None
+    except Exception as e:
+        return None
 
-def set_max_containers(new_value):
+def get_slurm_queue():
+    """Obtém lista de jobs no Slurm via SSH"""
+    try:
+        cmd = "squeue -o '%i|%u|%j|%T|%b|%C|%m|%L|%P' --noheader"
+        exit_code, out, err = run_remote_cmd(cmd) # <--- Usando SSH
+        
+        if exit_code == 0:
+            return parse_slurm_queue_output(out)
+        
+
+        print(f"Erro ao obter fila Slurm via SSH: {err}")
+        return []
+    except Exception as e:
+        print(f"Erro ao obter fila Slurm: {e}")
+        return []
+
+def update_job_status_from_slurm():
+    """Atualiza status dos jobs no banco baseado no Slurm"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Busca jobs com job_id preenchido
+        cursor.execute("""
+            SELECT id, base_name, job_id, status, user_id
+            FROM uploads 
+            WHERE job_id IS NOT NULL AND status IN ('PENDENTE', 'PROCESSANDO')
+        """)
+        
+        jobs = cursor.fetchall()
+        updated_count = 0
+        
+        for job_id, base_name, slurm_job_id, current_status, user_id in jobs:
+            slurm_status = get_slurm_job_status(slurm_job_id)
+            
+            if slurm_status:
+                # Mapear status Slurm para nossos status
+                if slurm_status in ['PENDING', 'PD', 'CF', 'S']:
+                    new_status = 'PENDENTE'
+                elif slurm_status in ['RUNNING', 'R', 'ST', 'CG']:
+                    new_status = 'PROCESSANDO'
+                elif slurm_status in ['COMPLETED', 'CD']:
+                    new_status = 'CONCLUIDO'
+                elif slurm_status in ['FAILED', 'F', 'TO', 'NF', 'CA', 'DL']:
+                    new_status = 'ERRO'
+                else:
+                    new_status = current_status
+                
+                # Atualizar se mudou
+                if new_status != current_status:
+                    updated_at = datetime.now().isoformat()
+                    
+                    cursor.execute(
+                        "UPDATE uploads SET status = ?, updated_at = ? WHERE id = ?",
+                        (new_status, updated_at, job_id)
+                    )
+                    
+                    # Log da mudança
+                    log_action(
+                        user_id, 
+                        f'Status atualizado: {current_status} → {new_status}', 
+                        f'Job {base_name} (Slurm: {slurm_job_id})'
+                    )
+                    
+                    print(f"[SLURM MONITOR] Job {base_name} atualizado: {current_status} -> {new_status}")
+                    updated_count += 1
+                    
+                    # Se terminou, verificar output
+                    if new_status in ['CONCLUIDO', 'ERRO']:
+                        check_job_output(slurm_job_id, base_name, user_id, new_status)
+        
+        conn.commit()
+        conn.close()
+        
+        if updated_count > 0:
+            print(f"[SLURM MONITOR] {updated_count} jobs atualizados")
+            
+    except Exception as e:
+        print(f"[SLURM MONITOR] Erro ao atualizar status: {e}")
+
+def check_job_output(job_id, base_name, user_id, status):
+    """Verifica output do job terminado"""
+    try:
+        output_file = f"/tmp/slurm_scripts/af_{base_name}_*.out"
+        
+        # Procura arquivo de output
+        import glob
+        files = glob.glob(output_file)
+        
+        if files:
+            with open(files[0], 'r') as f:
+                output = f.read()
+            
+            # Verifica se houve erro no AlphaFold
+            if status == 'CONCLUIDO' and 'ERROR' in output.upper():
+                # Job terminou mas teve erro no AlphaFold
+                conn = get_db_connection()
+                conn.execute(
+                    "UPDATE uploads SET status = 'ERRO', error_log = ? WHERE base_name = ?",
+                    (output[-5000:], base_name)  # Salva últimos 5000 chars
+                )
+                conn.commit()
+                conn.close()
+                
+                log_action(user_id, 'Erro no AlphaFold', base_name)
+        
+    except Exception as e:
+        print(f"Erro ao verificar output do job {job_id}: {e}")
+
+# ==============================================================
+# GERENCIAMENTO DE PRIORIDADE
+# ==============================================================
+
+def get_next_job():
+    """Obtém o próximo job a ser executado baseado em prioridade"""
     conn = get_db_connection()
-    conn.execute("UPDATE config SET value = ? WHERE key = 'max_containers'", (str(new_value),))
+    cursor = conn.cursor()
+    
+    # Prioridade: jobs mais antigos primeiro
+    cursor.execute("""
+        SELECT uploads.id, uploads.base_name, uploads.job_id, uploads.user_id, users.email
+        FROM uploads 
+        JOIN users ON uploads.user_id = users.id 
+        WHERE uploads.status = 'PENDENTE' 
+        AND uploads.job_id IS NOT NULL
+        ORDER BY uploads.created_at ASC
+        LIMIT 1
+    """)
+    
+    job = cursor.fetchone()
+    conn.close()
+    
+    if job:
+        return {
+            'id': job[0],
+            'base_name': job[1],
+            'job_id': job[2],
+            'user_id': job[3],
+            'email': job[4]
+        }
+    
+    return None
+
+def update_job_priority(job_id, priority_change):
+    """Atualiza prioridade de um job"""
+    conn = get_db_connection()
+    
+    # Implementação simples: atualizar created_at para mudar ordem
+    if priority_change == 'up':
+        # Aumenta prioridade (torna mais recente negativamente)
+        new_date = (datetime.now() - timedelta(days=365)).isoformat()
+    elif priority_change == 'down':
+        # Diminui prioridade (torna mais antigo)
+        new_date = (datetime.now() + timedelta(days=365)).isoformat()
+    else:
+        return False
+    
+    conn.execute(
+        "UPDATE uploads SET created_at = ? WHERE id = ?",
+        (new_date, job_id)
+    )
     conn.commit()
     conn.close()
-
-MAX_CONTAINERS = get_max_containers() 
-
-def get_running_container_count():
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh = get_ssh_connection()
-    stdin, stdout, _ = ssh.exec_command("docker ps | grep alphafold3 | wc -l")
-    count = int(stdout.read().decode().strip())
-    ssh.close()
-    return count
-
-def process_next_job():
-    tz = pytz.timezone("America/Sao_Paulo")
-    now_str = datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')
     
-    conn = get_db_connection()
+    return True
 
+def cancel_job(job_id, user_id=None):
+    """Cancela um job no Slurm"""
     try:
-        # -------------------------------------------------
-        # Seleção FAIR (round-robin por usuário)
-        # -------------------------------------------------
-        job = conn.execute("""
-            WITH next_job AS (
-                SELECT u.id
-                FROM uploads u
-                JOIN (
-                    SELECT user_id, MIN(created_at) AS first_job_time
-                    FROM uploads
-                    WHERE status = 'PENDENTE'
-                    GROUP BY user_id
-                ) grouped ON u.user_id = grouped.user_id AND u.created_at = grouped.first_job_time
-                ORDER BY grouped.first_job_time ASC
-                LIMIT 1
+        # Primeiro obtém o job_id do Slurm
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            "SELECT job_id, base_name FROM uploads WHERE id = ?",
+            (job_id,)
+        )
+        
+        result = cursor.fetchone()
+        if not result:
+            conn.close()
+            return False, "Job não encontrado"
+        
+        slurm_job_id, base_name = result
+        
+        # Verifica permissão (se user_id fornecido)
+        if user_id:
+            cursor.execute(
+                "SELECT user_id FROM uploads WHERE id = ?",
+                (job_id,)
             )
-                UPDATE uploads
-                SET status = 'PROCESSANDO'
-                WHERE id = (SELECT id FROM next_job)
-                RETURNING *;
-            """ ).fetchone()
-
-        conn.commit()
-
-        if not job:
-            return None
-
-        job = dict(job)  
-        log_action(job["user_id"], "Job Iniciado", f"BaseName={job['base_name']} | File={job['file_name']}")
-
+            owner = cursor.fetchone()
+            if owner and owner[0] != user_id:
+                conn.close()
+                return False, "Permissão negada: você não é o dono deste job"
+        
+        # Cancela no Slurm
+        result = subprocess.run(
+            ['scancel', str(slurm_job_id)],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        
+        if result.returncode == 0:
+            # Atualiza status no banco
+            cursor.execute(
+                "UPDATE uploads SET status = 'CANCELADO', updated_at = ? WHERE id = ?",
+                (datetime.now().isoformat(), job_id)
+            )
+            conn.commit()
+            
+            # Log
+            log_action(user_id or 0, 'Job cancelado', f'{base_name} (Slurm: {slurm_job_id})')
+            
+            conn.close()
+            return True, f"Job {slurm_job_id} cancelado com sucesso"
+        else:
+            conn.close()
+            return False, f"Erro ao cancelar job: {result.stderr}"
+            
     except Exception as e:
-        conn.rollback()
-        print(f"[ERRO] Falha ao buscar próximo job: {e}")
-        return None
-    finally:
-        conn.close()
+        return False, f"Erro: {str(e)}"
+
+# ==============================================================
+# SCHEDULER DO SLURM
+# ==============================================================
+
+try:
+    from apscheduler.schedulers.background import BackgroundScheduler
     
-    user_id = job["user_id"]
-    base_name = job["base_name"]
-    file_name = job["file_name"]
+    scheduler = BackgroundScheduler()
+    
+    @scheduler.scheduled_job('interval', seconds=30)
+    def scheduled_status_update():
+        """Atualiza status dos jobs periodicamente"""
+        with app.app_context():
+            try:
+                update_job_status_from_slurm()
+            except Exception as e:
+                print(f"[SCHEDULER] Erro: {e}")
+    
+    def start_slurm_monitor():
+        """Inicia o monitor do Slurm"""
+        if not scheduler.running:
+            scheduler.start()
+            print("[SLURM MONITOR] Iniciado")
+    
+    def stop_slurm_monitor():
+        """Para o monitor do Slurm"""
+        if scheduler.running:
+            scheduler.shutdown()
+            print("[SLURM MONITOR] Parado")
+    
+except ImportError:
+    print("[AVISO] APScheduler não instalado. Monitor Slurm desabilitado.")
+    
+    def start_slurm_monitor():
+        print("[SLURM MONITOR] APScheduler não instalado. Use: pip install apscheduler")
+    
+    def stop_slurm_monitor():
+        pass
 
-    # Pegando dados do usuário
-    conn = get_db_connection()
-    user = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
-    conn.close()
+# ==============================================================
+# INICIALIZAÇÃO
+# ==============================================================
 
-    if not user:
-        log_action(None, "Erro fila", f"Usuário ID {user_id} não encontrado para job {base_name}")
-        return
-
-    user_name = user["name"].replace(" ", "")
-    user_email = user["email"]
-
-    input_dir = shlex.quote(f"{ALPHAFOLD_INPUT_BASE}/{user_name}")
-    output_dir = shlex.quote(f"{ALPHAFOLD_OUTPUT_BASE}/{user_name}")
-    job_output_dir = f"{output_dir}/{base_name}"
-
-    cmd = (
-        f"docker run "
-        f"--volume {input_dir}:/root/af_input "
-        f"--volume {output_dir}:/root/af_output "
-        f"--volume {ALPHAFOLD_PARAMS}:/root/models "
-        f"--volume {ALPHAFOLD_DB}:/root/public_databases "
-        f"--gpus all alphafold3 "
-        f"python run_alphafold.py "
-        f"--json_path=/root/af_input/{file_name} "
-        f"--output_dir=/root/af_output/{base_name} "
-    )
-
-    # Executa remotamente em thread
-    def run_job():
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-        try:
-            ssh = get_ssh_connection()
-            ssh.exec_command(f"mkdir -p '{job_output_dir}'")
-
-            stdin, stdout, stderr = ssh.exec_command(cmd)
-
-            # Espera finalização
-            while not stdout.channel.exit_status_ready():
-                time.sleep(2)
-
-            exit_status = stdout.channel.recv_exit_status()
-            
-            # conn.execute("UPDATE uploads SET status = 'PROCESSANDO' WHERE id = ?", (job["id"],))
-            # conn.commit()
-            # conn.close()
-
-            remote_cif = f"{job_output_dir}/{ALPHAFOLD_PREDICTION}/{ALPHAFOLD_PREDICTION}_model.cif"
-            stdin, stdout, _ = ssh.exec_command(f'test -f "{remote_cif}" && echo OK || echo NO')
-            result = stdout.read().decode().strip()
-            
-            conn = get_db_connection()
-            if exit_status == 0 and result == "OK":
-                conn.execute("UPDATE uploads SET status = 'COMPLETO' WHERE id = ?", (job["id"],))
-                send_processing_complete_email(user_name, user_email, base_name, user_id)
-                log_action(user_id, "Job concluído com sucesso", base_name)
-            else:
-                error_msg = stderr.read().decode().strip()
-                conn.execute("UPDATE uploads SET status = 'ERRO', details = ? WHERE id = ?", (error_msg, job["id"]))
-                log_action(user_id, "Erro no job", f"{base_name} - exit {exit_status}, exists={result}")
-            conn.commit()
-            conn.close()
-
-        except Exception as e:
-            conn = get_db_connection()
-            conn.execute(
-                "UPDATE uploads SET status = 'ERRO', details = ? WHERE id = ?",
-                (str(e), job["id"])
-            )
-            conn.commit()
-            conn.close()
-            log_action(job["user_id"], "Erro de Execução", f"BaseName={base_name} | Exception={e}")
-        finally:
-            ssh.close()
-
-    t = threading.Thread(target=run_job)
-    t.start()
-
-
-def job_manager_loop():
-    while True:
-        try:
-            running = get_running_container_count()
-            if running < MAX_CONTAINERS:
-                process_next_job()
-        except Exception as e:
-            print("[job_manager_loop] Erro:", e)
-        time.sleep(10)  # Checa a cada 10s
+# Inicia automaticamente ao importar
+try:
+    start_slurm_monitor()
+except Exception as e:
+    print(f"[ERRO] Falha ao iniciar monitor Slurm: {e}")

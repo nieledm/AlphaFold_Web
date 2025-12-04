@@ -17,7 +17,7 @@ def get_env_description(key):
         'ALPHAFOLD_OUTPUT_BASE': 'Diretório base no servidor para arquivos de saída do AlphaFold.',
         'ALPHAFOLD_PARAMS': 'Caminho para os parâmetros e modelos do AlphaFold.',
         'ALPHAFOLD_DB': 'Caminho para os bancos de dados do AlphaFold.',
-        'ALPHAFOLD_PREDICTION': 'Configurações específicas para predições do AlphaFold.',
+        'ALPHAFOLD_PREDICTION': 'Diretório onde as predições do AlphaFold serão armazenadas.',
         'EMAIL_SENDER': 'Endereço de email para envio de notificações.',
         'EMAIL_PASSWORD': 'Senha do email para autenticação SMTP.',
         'BASE_URL': 'URL base da aplicação para links em emails e notificações.',

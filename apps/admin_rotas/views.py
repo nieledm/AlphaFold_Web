@@ -200,8 +200,8 @@ def excluir_usuario(user_id):
                     log_action(admin_user_id, 'Usuário Excluído', f'ID: {user_id}, Nome: {user_to_delete["name"]}, Email: {user_to_delete["email"]}')
 
                     user_folder_name = user_to_delete['name']
-                    input_user_dir = os.path.join(ALPHAFOLD_INPUT_BASE, user_folder_name)
-                    output_user_dir = os.path.join(ALPHAFOLD_OUTPUT_BASE, user_folder_name)
+                    input_user_dir = os.path.join(ALPHAFOLD_INPUT_BASE, user_folder_name).replace("\\", "/")
+                    output_user_dir = os.path.join(ALPHAFOLD_OUTPUT_BASE, user_folder_name).replace("\\", "/")
                     
                     if os.path.exists(input_user_dir):
                         shutil.rmtree(input_user_dir)

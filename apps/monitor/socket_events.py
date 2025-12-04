@@ -1,6 +1,7 @@
 """
 Gerenciamento de eventos Socket.IO para atualização em tempo real
 """
+from flask import current_app
 from flask_socketio import emit, join_room, leave_room
 from apps.monitor.utils import get_system_status, parse_system_status, get_job_counts, get_pending_jobs
 from config import ALPHAFOLD_SSH_HOST, ALPHAFOLD_SSH_PORT, ALPHAFOLD_SSH_USER
@@ -75,12 +76,13 @@ def handle_start_live_updates():
     Cliente pede para começar a receber atualizações periódicas.
     """
     session_id = session.get('session_id', 'unknown')
+    is_admin = session.get('is_admin', False)
     print(f"[SocketIO] Cliente {session_id} solicitou atualizações ao vivo")
     
     # Marca que não deve parar
     stop_updates[session_id] = False
     
-    def emit_updates():
+    def emit_updates(is_admin_flag):
         """Função que roda em background e emite atualizações"""
         
         # Envia atualizações a cada 5 segundos
@@ -94,7 +96,7 @@ def handle_start_live_updates():
                 pending_jobs_list = get_pending_jobs() if session.get("is_admin") else []
 
                 # Emite para o cliente específico
-                with socketio.server.app.app_context():
+                with current_app.app_context():
                     socketio.emit('status_update', {
                         'status': status,
                         'error': raw_status.get('error') if 'error' in raw_status else None,
@@ -112,7 +114,7 @@ def handle_start_live_updates():
     
     # Inicia thread para emitir atualizações (só se não tiver uma ativa)
     if session_id not in update_threads or not update_threads[session_id].is_alive():
-        update_thread = Thread(target=emit_updates, daemon=True)
+        update_thread = Thread(target=emit_updates, args=(is_admin,), daemon=True)
         update_thread.start()
         update_threads[session_id] = update_thread
     
@@ -214,7 +216,7 @@ def handle_start_jobs_live_updates():
                 ]
                 
                 # Emite para o cliente específico
-                with socketio.server.app.app_context():
+                with current_app.app_context():
                     socketio.emit('jobs_update', {
                         'uploads': uploads_list,
                         'timestamp': time.time()
@@ -428,7 +430,7 @@ def handle_start_logs_live_updates(data=None):
                 ]
                 
                 # Emite para o cliente específico
-                with socketio.server.app.app_context():
+                with current_app.app_context():
                     socketio.emit('logs_update', {
                         'logs': logs_list,
                         'count': len(logs_list),

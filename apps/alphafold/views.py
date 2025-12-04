@@ -1,13 +1,15 @@
 from flask import render_template, redirect, url_for, flash, request, session, g, send_file
 from threading import Thread
 from datetime import datetime
-import os, io, json, pytz, tempfile, zipfile, paramiko, stat, shlex, pwd, grp
+import os, io, json, pytz, tempfile, zipfile, paramiko, stat, shlex#, pwd, grp
 from database import get_db_connection
 from conections import get_ssh_connection
 
 from apps.logs.utils import log_action
 from apps.autentication.utils import admin_required, login_required
+from apps.slurm.job_submitter import submit_slurm_job
 from config import ALPHAFOLD_INPUT_BASE, ALPHAFOLD_OUTPUT_BASE, ALPHAFOLD_PARAMS, ALPHAFOLD_DB, ALPHAFOLD_PREDICTION
+from apps.configuration.env_editor import remote_join
 
 from .utils import run_alphafold_in_background
 
@@ -59,9 +61,15 @@ def upload_file():
     elif request.form.get('json_data'):
         try:
             json_data = request.form.get('json_data')
-            # Criar um nome de arquivo com timestamp
+            # Pegar o nome do arquivo enviado pelo formulário, se houver
+            base_filename = request.form.get('filename')
             timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-            filename = f"alphafold_data_{timestamp}.json"
+            if base_filename:
+                # Se o nome base foi enviado (o que acontece no ProcessJSONWithName)
+                filename = f"{base_filename}.json"
+            else:
+                # Se, por segurança, o nome não foi enviado (fallback)
+                filename = f"alphafold_data_{timestamp}.json"
         except Exception as e:
             flash('Erro ao processar dados JSON.', 'danger')
             log_action(user_id, 'Erro de Upload', f'Erro no JSON: {str(e)}')
@@ -86,9 +94,9 @@ def upload_file():
     user_email = session['user_email']
     user_id = session['user_id']
 
-    input_subdir = os.path.join(ALPHAFOLD_INPUT_BASE, user_name_clean)
-    output_user_dir = os.path.join(ALPHAFOLD_OUTPUT_BASE, user_name_clean)
-    output_subdir = os.path.join(output_user_dir, base_name)
+    input_subdir = os.path.join(ALPHAFOLD_INPUT_BASE, user_name_clean).replace("\\", "/")
+    output_user_dir = os.path.join(ALPHAFOLD_OUTPUT_BASE, user_name_clean).replace("\\", "/")
+    output_subdir = os.path.join(output_user_dir, base_name).replace("\\", "/")
 
     # Cria diretórios para input e output caso não existam
     input_path_ssh = shlex.quote(input_subdir)
@@ -101,9 +109,9 @@ def upload_file():
     if exit_status != 0:
         error = stderr.read().decode()
         raise RuntimeError(f"Erro criando diretórios: {error}")
-
+    
     # Salva arquivo no servidor - DIFERENÇA AQUI
-    input_file_path = os.path.join(input_subdir, filename)
+    input_file_path = os.path.join(input_subdir, filename).replace("\\", "/")
     
     if file:  # Caso 1: Arquivo enviado pelo formulário
         sftp.putfo(file.stream, input_file_path)
@@ -116,24 +124,24 @@ def upload_file():
     sftp.close()
     ssh.close()
 
-    # Salva no banco
-    conn = get_db_connection()
-    conn.execute(
-        'INSERT INTO uploads (user_id, file_name, base_name, status, created_at) VALUES (?, ?, ?, ?, ?)',
-        (session['user_id'], filename, base_name, 'PENDENTE', now_str)
-    )
-    conn.commit()
-    conn.close()
+    # # Salva no banco
+    # conn = get_db_connection()
+    # conn.execute(
+    #     'INSERT INTO uploads (user_id, file_name, base_name, status, created_at) VALUES (?, ?, ?, ?, ?)',
+    #     (session['user_id'], filename, base_name, 'PENDENTE', now_str)
+    # )
+    # conn.commit()
+    # conn.close()
 
     log_action(user_id, 'Arquivo JSON Uploaded', f'Nome: {filename}, BaseName: {base_name}')
 
     uid = 0  # root
-    gid = grp.getgrnam("alphaFoldWeb").gr_gid
+    # gid = grp.getgrnam("alphaFoldWeb").gr_gid
 
     # Monta comando e roda em background
     command = (
         f"docker run "
-        f"--user {uid}:{gid} "
+        # f"--user {uid}:{gid} "
         f"--volume {input_subdir}:/root/af_input "
         f"--volume {output_user_dir}:/root/af_output "
         f"--volume {ALPHAFOLD_PARAMS}:/root/models "
@@ -144,11 +152,27 @@ def upload_file():
         f"--output_dir=/root/af_output/{base_name} "
     )
    
-    Thread(target=run_alphafold_in_background, args=(
-        command, user_name_clean, user_email, base_name, user_id
-    )).start()
-            
-    flash("Arquivo enviado. Você será notificado quando o processamento terminar.", 'info')
+#    Antiga submissão de job sem slurm
+    # Thread(target=run_alphafold_in_background, args=(
+    #     command, user_name_clean, user_email, base_name, user_id
+    # )).start()
+
+    # Submete job via SLURM
+    job_id = submit_slurm_job(command, user_name_clean, base_name)
+
+    # Salva no banco
+    conn = get_db_connection()
+    conn.execute(
+        '''INSERT INTO uploads 
+           (user_id, file_name, base_name, status, job_id, created_at) 
+           VALUES (?, ?, ?, ?, ?, ?)''',
+        (session['user_id'], filename, base_name, 'PENDENTE', job_id, now_str)
+    )
+    conn.commit()
+    conn.close()
+        
+
+    flash("Arquivo enviado. Você será notificado quando o processamento começar.", 'info')
     log_action(user_id, 'Processamento AlphaFold Iniciado', f'BaseName: {base_name}')
     return redirect(url_for('users.dashboard'))
 

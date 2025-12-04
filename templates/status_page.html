@@ -180,34 +180,156 @@
         <div class="card status-card">
             <div class="card-header bg-success bg-opacity-10 text-success border-bottom border-success border-opacity-25">
                 <div class="d-flex justify-content-between align-items-center flex-wrap">
-                    <h5 class="card-title mb-0">Processamento</h5>
-                    <div class="max-containers-container">
-                        <span class="me-2"><i class="fas fa-server"></i> Containers Máx. =</span>
-                        <span class="text-success fw-bold me-2">{{ MAX_CONTAINERS }}</span>
-                        <form method="POST" action="{{ url_for('monitor.update_max_containers') }}" class="max-containers-form">
-                            <input type="number" name="max_containers" min="1" class="form-control form-control-sm max-containers-input" 
-                                value="{{ max_containers }}">
-                            <button type="submit" class="btn btn-primary btn-sm">Atualizar</button>
+                    <h5 class="card-title mb-0">Fila SLURM</h5>
+                    <div class="d-flex align-items-center">
+                        <button type="button" class="btn btn-info btn-sm me-2" onclick="refreshSlurmQueue()">
+                            <i class="fas fa-sync-alt"></i> Atualizar
+                        </button>
+                        <span class="badge bg-primary me-2">
+                            <i class="fas fa-microchip"></i> {{ status.slurm_queue|length }} jobs
+                        </span>
+                        <span class="badge bg-success me-2">
+                            <i class="fas fa-play"></i> {{ slurm_running_count }} rodando
+                        </span>
+                        <span class="badge bg-warning">
+                            <i class="fas fa-pause"></i> {{ slurm_pending_count }} pendentes
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="row h-100 m-0">
+                    <!-- Fila SLURM Ativa -->
+                    <div class="col-md-12 p-3">
+                        <div class="processing-section h-100">
+                            {% if status.slurm_queue and status.slurm_queue|length > 0 %}
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover">
+                                        <thead class="table-primary">
+                                            <tr>
+                                                <th>Job ID</th>
+                                                <th>Nome</th>
+                                                <th>Usuário</th>
+                                                <th>Status</th>
+                                                <th>GPUs</th>
+                                                <th>CPUs</th>
+                                                <th>Memória</th>
+                                                <th>Tempo</th>
+                                                <th>Ações</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="slurm-queue-body">
+                                            {% for job in status.slurm_queue %}
+                                                <tr>
+                                                    <td><code>{{ job.job_id }}</code></td>
+                                                    <td class="text-truncate" style="max-width: 150px;" title="{{ job.name }}">
+                                                        {{ job.name }}
+                                                    </td>
+                                                    <td>{{ job.user }}</td>
+                                                    <td>
+                                                        {% if job.state in ['RUNNING', 'R'] %}
+                                                            <span class="badge bg-success">Rodando</span>
+                                                        {% elif job.state in ['PENDING', 'PD'] %}
+                                                            <span class="badge bg-warning">Pendente</span>
+                                                        {% elif job.state in ['COMPLETED', 'CD'] %}
+                                                            <span class="badge bg-info">Concluído</span>
+                                                        {% elif job.state in ['FAILED', 'F'] %}
+                                                            <span class="badge bg-danger">Falhou</span>
+                                                        {% else %}
+                                                            <span class="badge bg-secondary">{{ job.state }}</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if job.gres %}
+                                                            <span class="badge bg-primary">{{ job.gres }}</span>
+                                                        {% else %}
+                                                            <span class="badge bg-secondary">N/A</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>{{ job.cpus }}</td>
+                                                    <td>{{ job.mem }}</td>
+                                                    <td>{{ job.time }}</td>
+                                                    <td>
+                                                        <div class="action-buttons">
+                                                            {% if job.state in ['PENDING', 'PD', 'RUNNING', 'R'] %}
+                                                                <form action="{{ url_for('monitor.cancel_slurm_job', job_id=job.job_id) }}" 
+                                                                    method="POST" class="d-inline"
+                                                                    onsubmit="return confirm('Cancelar job ' + '{{ job.job_id }}' + '?');">
+                                                                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                                        <i class="fas fa-ban"></i> Cancelar
+                                                                    </button>
+                                                                </form>
+                                                            {% endif %}
+                                                            {% if job.state in ['PENDING', 'PD'] %}
+                                                                <form action="{{ url_for('monitor.prioritize_slurm_job', job_id=job.job_id) }}" 
+                                                                    method="POST" class="d-inline"
+                                                                    onsubmit="return confirm('Priorizar job ' + '{{ job.job_id }}' + '?');">
+                                                                    <button type="submit" class="btn btn-outline-primary btn-sm">
+                                                                        <i class="fas fa-arrow-up"></i> Priorizar
+                                                                    </button>
+                                                                </form>
+                                                            {% endif %}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <p class="text-muted text-center py-4">Nenhum job na fila SLURM</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Seção Jobs do Sistema -->
+<div class="row processing-container mt-4">
+    <div class="col-12">
+        <div class="card status-card">
+            <div class="card-header bg-info bg-opacity-10 text-info border-bottom border-info border-opacity-25">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <h5 class="card-title mb-0">Jobs do Sistema</h5>
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-primary me-2">
+                            <i class="fas fa-list"></i> {{ total_jobs }} total
+                        </span>
+                        <span class="badge bg-success me-2">
+                            <i class="fas fa-check"></i> {{ completed_count }} concluídos
+                        </span>
+                        <span class="badge bg-danger me-2">
+                            <i class="fas fa-times"></i> {{ error_count }} erros
+                        </span>
+                        <form method="POST" action="{{ url_for('monitor.cleanup_stuck_jobs') }}" class="me-2">
+                            <button type="submit" class="btn btn-warning btn-sm" 
+                                    onclick="return confirm('Resetar jobs travados?')">
+                                <i class="fas fa-broom"></i> Limpar Jobs Travados
+                            </button>
                         </form>
                     </div>
                 </div>
             </div>
             <div class="card-body p-0">
                 <div class="row h-100 m-0">
-                    <!-- Processando -->
+                    <!-- Jobs Ativos -->
                     <div class="col-md-6 p-3 border-end">
                         <div class="processing-section h-100">
                             <div class="text-center mb-3">
-                                <h3 class="text-primary stat-number" id="running-count">{{ running_count }}</h3>
-                                <p class="mb-3"><i class="fas fa-cogs"></i> Processando</p>
+                                <h3 class="text-primary stat-number">{{ running_count }}</h3>
+                                <p class="mb-3"><i class="fas fa-cogs"></i> Em Processamento</p>
                             </div>
-                            {% if running_count > 0 %}
+                            {% if running_jobs_list and running_jobs_list|length > 0 %}
                                 <div class="table-responsive">
                                     <table class="table table-striped table-hover">
                                         <thead class="table-primary">
                                             <tr>
-                                                <th>Arquivo</th>
+                                                <th>Job</th>
                                                 <th>Usuário</th>
+                                                <th>Slurm ID</th>
                                                 <th>Data</th>
                                                 <th>Ações</th>
                                             </tr>
@@ -215,26 +337,28 @@
                                         <tbody>
                                             {% for job in running_jobs_list %}
                                                 <tr>
-                                                    <td class="text-truncate" style="max-width: 120px;">{{ job['base_name'] }}</td>
-                                                    <td>{{ job['name'] }}</td>
-                                                    <td>{{ job['created_at'] }}</td>
+                                                    <td class="text-truncate" style="max-width: 120px;" title="{{ job.base_name }}">
+                                                        {{ job.base_name }}
+                                                    </td>
+                                                    <td>{{ job.user_name }}</td>
                                                     <td>
-                                                        <div class="action-buttons">
-                                                            <form action="{{ url_for('monitor.force_cancel_job', base_name=job.base_name) }}" 
+                                                        {% if job.job_id %}
+                                                            <code>{{ job.job_id }}</code>
+                                                        {% else %}
+                                                            <span class="badge bg-secondary">N/A</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>{{ job.created_at[:16] }}</td>
+                                                    <td>
+                                                        {% if job.job_id %}
+                                                            <form action="{{ url_for('monitor.cancel_slurm_job', job_id=job.job_id) }}" 
                                                                 method="POST" class="d-inline"
-                                                                onsubmit="return confirm('Cancelar job em execução?');">
-                                                                <button type="submit" class="btn btn-outline-danger btn-sm btn-uniform">
-                                                                    <i class="fas fa-ban"></i> Cancelar
+                                                                onsubmit="return confirm('Cancelar job {{ job.job_id }}?');">
+                                                                <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                                    <i class="fas fa-ban"></i>
                                                                 </button>
                                                             </form>
-                                                            <form action="{{ url_for('monitor.increase_priority', base_name=job.base_name) }}" 
-                                                                method="POST" class="d-inline"
-                                                                onsubmit="return confirm('Priorizar job?');">
-                                                                <button type="submit" class="btn btn-outline-primary btn-sm btn-uniform">
-                                                                    <i class="fas fa-arrow-up"></i> Priorizar
-                                                                </button>
-                                                            </form>
-                                                        </div>
+                                                        {% endif %}
                                                     </td>
                                                 </tr>
                                             {% endfor %}
@@ -247,20 +371,21 @@
                         </div>
                     </div>
                     
-                    <!-- Fila de espera -->
+                    <!-- Jobs Pendentes -->
                     <div class="col-md-6 p-3">
                         <div class="processing-section h-100">
                             <div class="text-center mb-3">
-                                <h3 class="text-warning stat-number" id="pending-count">{{ pending_jobs_list|length }}</h3>
-                                <p class="mb-3"><i class="fas fa-hourglass-half"></i> Na Fila</p>
+                                <h3 class="text-warning stat-number">{{ pending_jobs_list|length }}</h3>
+                                <p class="mb-3"><i class="fas fa-hourglass-half"></i> Pendentes</p>
                             </div>
-                            {% if pending_jobs_list|length > 0 %}
+                            {% if pending_jobs_list and pending_jobs_list|length > 0 %}
                                 <div class="table-responsive">
                                     <table class="table table-striped table-hover">
                                         <thead class="table-warning">
                                             <tr>
-                                                <th>Arquivo</th>
+                                                <th>Job</th>
                                                 <th>Usuário</th>
+                                                <th>Slurm ID</th>
                                                 <th>Data</th>
                                                 <th>Ações</th>
                                             </tr>
@@ -268,26 +393,35 @@
                                         <tbody>
                                             {% for job in pending_jobs_list %}
                                                 <tr>
-                                                    <td class="text-truncate" style="max-width: 120px;">{{ job['base_name'] }}</td>
-                                                    <td>{{ job['name'] }}</td>
-                                                    <td>{{ job['created_at'] }}</td>
+                                                    <td class="text-truncate" style="max-width: 120px;" title="{{ job.base_name }}">
+                                                        {{ job.base_name }}
+                                                    </td>
+                                                    <td>{{ job.user_name }}</td>
                                                     <td>
-                                                        <div class="action-buttons">
-                                                            <form action="{{ url_for('monitor.force_cancel_job', base_name=job.base_name) }}" 
+                                                        {% if job.job_id %}
+                                                            <code>{{ job.job_id }}</code>
+                                                        {% else %}
+                                                            <span class="badge bg-secondary">N/A</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>{{ job.created_at[:16] }}</td>
+                                                    <td>
+                                                        {% if job.job_id %}
+                                                            <form action="{{ url_for('monitor.cancel_slurm_job', job_id=job.job_id) }}" 
                                                                 method="POST" class="d-inline"
-                                                                onsubmit="return confirm('Cancelar job em espera?');">
-                                                                <button type="submit" class="btn btn-outline-danger btn-sm btn-uniform">
-                                                                    <i class="fas fa-ban"></i> Cancelar
+                                                                onsubmit="return confirm('Cancelar job {{ job.job_id }}?');">
+                                                                <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                                    <i class="fas fa-ban"></i>
                                                                 </button>
                                                             </form>
-                                                            <form action="{{ url_for('monitor.increase_priority', base_name=job.base_name) }}" 
-                                                                method="POST" class="d-inline"
-                                                                onsubmit="return confirm('Priorizar job?');">
-                                                                <button type="submit" class="btn btn-outline-primary btn-sm btn-uniform">
-                                                                    <i class="fas fa-arrow-up"></i> Priorizar
+                                                            <form action="{{ url_for('monitor.prioritize_slurm_job', job_id=job.job_id) }}"
+                                                                method="POST" class="d-inline">
+                                                                <button type="submit" class="btn btn-outline-primary btn-sm" 
+                                                                        title="Aumentar prioridade">
+                                                                    <i class="fas fa-arrow-up"></i>
                                                                 </button>
                                                             </form>
-                                                        </div>
+                                                        {% endif %}
                                                     </td>
                                                 </tr>
                                             {% endfor %}
@@ -295,7 +429,7 @@
                                     </table>
                                 </div>
                             {% else %}
-                                <p class="text-muted text-center py-4">Nenhum job na fila</p>
+                                <p class="text-muted text-center py-4">Nenhum job pendente</p>
                             {% endif %}
                         </div>
                     </div>
@@ -315,8 +449,75 @@
             window.cpuUsage = {{ status.cpu.usage | default(0) | tojson }};
             window.memUsage = {{ status.mem.percent_used | default(0) | tojson }};
             window.gpuData = {{ status.gpu | tojson }};
+            window.slurmQueue = {{ status.slurm_queue | tojson if status.slurm_queue else [] }};
         </script>
     {% endif %}
+    
+    <script>
+        function refreshSlurmQueue() {
+            fetch('/api/slurm/queue')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.slurm_queue) {
+                        updateSlurmTable(data.slurm_queue);
+                    }
+                })
+                .catch(error => console.error('Erro:', error));
+        }
+        
+        function updateSlurmTable(jobs) {
+            const tbody = document.getElementById('slurm-queue-body');
+            if (!tbody) return;
+            
+            tbody.innerHTML = '';
+            
+            jobs.forEach(job => {
+                const row = document.createElement('tr');
+                
+                // Determinar badge de status
+                let statusBadge = '';
+                if (job.state && job.state.includes('RUNNING')) {
+                    statusBadge = '<span class="badge bg-success">Rodando</span>';
+                } else if (job.state && job.state.includes('PENDING')) {
+                    statusBadge = '<span class="badge bg-warning">Pendente</span>';
+                } else {
+                    statusBadge = `<span class="badge bg-secondary">${job.state || 'N/A'}</span>`;
+                }
+                
+                row.innerHTML = `
+                    <td><code>${job.job_id || 'N/A'}</code></td>
+                    <td class="text-truncate" style="max-width: 150px;" title="${job.name || ''}">
+                        ${job.name || 'N/A'}
+                    </td>
+                    <td>${job.user || 'N/A'}</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        ${job.gres ? `<span class="badge bg-primary">${job.gres}</span>` : '<span class="badge bg-secondary">N/A</span>'}
+                    </td>
+                    <td>${job.cpus || 'N/A'}</td>
+                    <td>${job.mem || 'N/A'}</td>
+                    <td>${job.time || 'N/A'}</td>
+                    <td>
+                        <div class="action-buttons">
+                            ${job.job_id ? `
+                                <form action="/monitor/cancel-slurm-job/${job.job_id}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm" 
+                                            onclick="return confirm('Cancelar job ${job.job_id}?')">
+                                        <i class="fas fa-ban"></i>
+                                    </button>
+                                </form>
+                            ` : ''}
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        
+        // Auto-refresh a cada 30 segundos
+        setInterval(refreshSlurmQueue, 30000);
+    </script>
+    
     <!-- Socket.IO para atualização em tempo real -->
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script src="{{ url_for('static', filename='js/socket_status_client.js') }}"></script>

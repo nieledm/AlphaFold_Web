@@ -1,10 +1,10 @@
 from flask import request, g, jsonify
 from database import get_db_connection, init_db
 from threading import Thread
-from apps.monitor.utils import job_manager_loop
 from config import app
 from datetime import datetime
 from flask_socketio import SocketIO
+from apps.monitor.utils import start_slurm_monitor
 
 # ==============================================================
 # DATA E HORÁRIO
@@ -47,6 +47,9 @@ app.register_blueprint(users_bp)
 from apps.configuration.views import config_bp
 app.register_blueprint(config_bp)
 
+from apps.slurm import slurm_bp
+app.register_blueprint(slurm_bp, url_prefix="/slurm")
+
 # ==============================================================
 # FUNÇÕES DE CONTEXTO E INICIALIZAÇÃO
 # ==============================================================
@@ -73,18 +76,53 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 from apps.monitor.socket_events import register_socketio_handlers
 register_socketio_handlers(socketio)
 
-# ==============================================================
-# GERENCIADOR DE JOBS (fila AlphaFold)
-# ==============================================================
+# # ==============================================================
+# # GERENCIADOR DE JOBS (fila AlphaFold)
+# # ==============================================================
 
-def start_job_manager():
-    """Inicia o loop do gerenciador de jobs em thread separada"""
-    t = Thread(target=job_manager_loop, daemon=True)
-    t.start()
-    print("[JobManager] Loop de gerenciamento iniciado em background.")
+# def start_job_manager():
+#     """Inicia o loop do gerenciador de jobs em thread separada"""
+#     t = Thread(target=job_manager_loop, daemon=True)
+#     t.start()
+#     print("[JobManager] Loop de gerenciamento iniciado em background.")
+
+# @app.route('/debug_queue')
+# def debug_queue():
+#     """Endpoint para debug da fila de jobs"""
+#     conn = get_db_connection()
+    
+#     # Status dos jobs
+#     status_counts = conn.execute("""
+#         SELECT status, COUNT(*) as count 
+#         FROM uploads 
+#         GROUP BY status
+#     """).fetchall()
+    
+#     # Últimos 10 jobs
+#     recent_jobs = conn.execute("""
+#         SELECT base_name, status, created_at, user_id 
+#         FROM uploads 
+#         ORDER BY created_at DESC 
+#         LIMIT 10
+#     """).fetchall()
+    
+#     # Containers em execução
+#     from apps.monitor.utils import get_running_container_count, get_max_containers
+#     running_containers = get_running_container_count()
+#     max_containers = get_max_containers()
+    
+#     conn.close()
+    
+#     return jsonify({
+#         'status_counts': dict(status_counts),
+#         'recent_jobs': [dict(job) for job in recent_jobs],
+#         'containers': {
+#             'running': running_containers,
+#             'max': max_containers
+#         }
+#     })
 # ==============================================================
 
 if __name__ == '__main__':
     init_db()
-    start_job_manager()
     socketio.run(app, debug=True, host='0.0.0.0', port=5055)

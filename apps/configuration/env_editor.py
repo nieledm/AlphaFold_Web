@@ -10,3 +10,16 @@ def get_env_variables():
 def update_env_variable(key, value):
     """Atualiza ou adiciona uma variável no .env"""
     set_key(ENV_PATH, key, value)
+
+def remote_join(*parts):
+    cleaned = []
+    for p in parts:
+        if not p:
+            continue
+        # remove only trailing slashes
+        cleaned.append(str(p).rstrip("/"))
+    result = "/".join(cleaned)
+    # ensure leading slash if original first part had it
+    if str(parts[0]).startswith("/"):
+        result = "/" + result.lstrip("/")
+    return result

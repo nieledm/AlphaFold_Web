@@ -15,7 +15,7 @@ else:
     cursor.execute("""
         INSERT INTO users (name, email, password, is_admin, is_active)
         VALUES (?, ?, ?, ?, ?)
-    """, ("Niele", "nieledm@gmail.com", "123", 1, 1))
+    """, ("admin", "admin@aplhafold3", "@Dmin514", 1, 1))
 
     conn.commit()
     print("Usuário admin criado com sucesso!")
