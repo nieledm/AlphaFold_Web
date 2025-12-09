@@ -510,6 +510,8 @@ MKTAYIAKQRQISFVKSHFSRQDILDLKEQKMSMADKQSDTEEIIFDSGVDKTRSIAKELRKVLD</pre>
     `;
     document.body.appendChild(instructionsModal);
   }
+
+  document.getElementById('csvInstructionsContent').innerHTML = instructionsContent;
   
   const modal = new bootstrap.Modal(instructionsModal);
   modal.show();

@@ -854,18 +854,17 @@ function initEntityTypeListener(card) {
 }
 
 document.getElementById('jsonForm').addEventListener('submit', function (e) {
-    if (jasonForm) {
-      const selected = entityType.value;
-      const seq = sequenceField.value.toUpperCase();
+    const selected = entityType.value;
+    const seq = sequenceField.value.toUpperCase();
 
-      let invalid = false;
-      if (selected === 'protein' && /[BJOUXZ]/.test(seq)) invalid = true;
-      if (selected === 'dna' && /[^ATCG]/i.test(seq)) invalid = true;
-      if (selected === 'rna' && /[^AUCG]/i.test(seq)) invalid = true;
+    let invalid = false;
+    if (selected === 'protein' && /[BJOUXZ]/.test(seq)) invalid = true;
+    if (selected === 'dna' && /[^ATCG]/i.test(seq)) invalid = true;
+    if (selected === 'rna' && /[^AUCG]/i.test(seq)) invalid = true;
 
-      if (invalid) {
-          e.preventDefault();
-          alert("A sequência contém caracteres inválidos. Corrija antes de continuar.");
-      }
-    }   
+    if (invalid) {
+        e.preventDefault();
+        alert("A sequência contém caracteres inválidos. Corrija antes de continuar.");
+    }
+    
 });
