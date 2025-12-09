@@ -43,7 +43,7 @@ def status():
         
         # Contagens totais
         total_jobs = conn.execute("SELECT COUNT(*) FROM uploads").fetchone()[0]
-        completed_count = conn.execute("SELECT COUNT(*) FROM uploads WHERE status = 'CONCLUIDO'").fetchone()[0]
+        completed_count = conn.execute("SELECT COUNT(*) FROM uploads WHERE status = 'COMPLETO'").fetchone()[0]
         error_count = conn.execute("SELECT COUNT(*) FROM uploads WHERE status = 'ERRO'").fetchone()[0]
         
         conn.close()

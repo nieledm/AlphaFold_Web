@@ -295,7 +295,7 @@ def update_job_status_from_slurm():
                 elif slurm_status in ['RUNNING', 'R', 'ST', 'CG']:
                     new_status = 'PROCESSANDO'
                 elif slurm_status in ['COMPLETED', 'CD']:
-                    new_status = 'CONCLUIDO'
+                    new_status = 'COMPLETO'
                 elif slurm_status in ['FAILED', 'F', 'TO', 'NF', 'CA', 'DL']:
                     new_status = 'ERRO'
                 else:
