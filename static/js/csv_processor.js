@@ -511,6 +511,7 @@ MKTAYIAKQRQISFVKSHFSRQDILDLKEQKMSMADKQSDTEEIIFDSGVDKTRSIAKELRKVLD</pre>
     document.body.appendChild(instructionsModal);
   }
   
+  const modal = new bootstrap.Modal(instructionsModal);
   modal.show();
 }
 
