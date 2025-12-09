@@ -71,49 +71,41 @@ function processCSVContent(csvContent, filename) {
     let smilesNameIndex = -1;
     let smilesSmilesIndex = -1;
 
-    // Antes do loop, remova BOM se houver
-    csvContent = csvContent.replace(/\uFEFF/g, '');
-
     for (let i = 0; i < lines.length; i++) {
-      const rawLine = lines[i];
-      // Trim básico (remove espaços laterais) mas mantenha CR/LF para limpeza posterior
-      const trimmed = rawLine === null || rawLine === undefined ? '' : rawLine.trim();
-      // versão lower para comparações
-      const lowerLine = trimmed.toLowerCase();
+      const line = lines[i];
+      const lowerLine = line.toLowerCase();
+      
+      console.log(`Linha ${i}: "${line.substring(0, 50)}${line.length > 50 ? '...' : ''}"`);
 
-      // Cria uma versão "clean" removendo espaços e CR/LF e tabs no meio
-      const clean = lowerLine.replace(/[\s\r\n]+/g, '');
-
-      console.log(`Linha ${i}: "${(trimmed || '').substring(0, 50)}${(trimmed || '').length > 50 ? '...' : ''}" (clean="${clean}")`);
-
-      // Pula linhas que são vazias após limpeza
-      if (clean === '') {
+      // Pula linhas completamente vazias
+      if (line === '') {
         continue;
       }
 
       // Detecta transição para proteínas (linha com apenas separador ou header de proteína)
       if (!foundTransition && currentSection === 'smiles') {
-        const isTransitionLine =
-          clean === ';' ||
-          clean === separator ||
-          // cobre casos como "protein", "protein;", "protein;" com espaços escondidos
-          proteinHeaders.some(header => clean === header || clean === header + ';' || clean === header + separator);
-
+        // Verifica se é uma linha de transição
+        const isTransitionLine = line === ';' || 
+                                line === separator || 
+                                proteinHeaders.some(header => 
+                                  lowerLine === header || 
+                                  lowerLine === header + separator);
+        
         if (isTransitionLine) {
           foundTransition = true;
           currentSection = 'proteins';
-          console.log(`Transição detectada na linha ${i}: "${trimmed}" (clean="${clean}")`);
-          continue; // não processe esta linha como SMILES nem proteína
+          console.log(`Transição detectada na linha ${i}: "${line}"`);
+          continue;
         }
       }
-
+      
       // Processa SMILES (antes da transição)
       if (currentSection === 'smiles') {
         // Primeira linha - detecta headers
         if (i === 0) {
-          const headers = trimmed.split(separator).map(h => h.trim().toLowerCase());
+          const headers = line.split(separator).map(h => h.trim().toLowerCase());
           console.log('Headers encontrados:', headers);
-
+          
           // Procura índices para Name e SMILES
           headers.forEach((header, index) => {
             if (nameHeaders.includes(header)) {
@@ -125,68 +117,89 @@ function processCSVContent(csvContent, filename) {
               console.log(`Header "SMILES" encontrado na coluna ${index + 1}`);
             }
           });
-
+          
           // Se não encontrou, assume posições padrão
           if (smilesNameIndex === -1 && smilesSmilesIndex === -1) {
             smilesNameIndex = 0;
             smilesSmilesIndex = Math.min(1, headers.length - 1);
             console.log(`Usando posições padrão: Name=${smilesNameIndex}, SMILES=${smilesSmilesIndex}`);
           }
+          
           continue;
         }
-
+        
         // Processa dados SMILES (linha não vazia e com separador)
-        if (trimmed.includes(separator)) {
-          const parts = trimmed.split(separator).map(p => p.trim());
+        if (line.includes(separator)) {
+          const parts = line.split(separator).map(p => p.trim());
+          
           // Remove partes vazias no final
-          while (parts.length > 0 && parts[parts.length - 1] === '') parts.pop();
-
+          while (parts.length > 0 && parts[parts.length - 1] === '') {
+            parts.pop();
+          }
+          
           if (parts.length >= 2) {
-            const nameIndex = smilesNameIndex !== -1 ? Math.min(smilesNameIndex, parts.length - 1) : 0;
-            const smilesIndex = smilesSmilesIndex !== -1 ? Math.min(smilesSmilesIndex, parts.length - 1) : 1;
-
+            // Usa índices detectados ou padrão
+            const nameIndex = smilesNameIndex !== -1 ? 
+                            Math.min(smilesNameIndex, parts.length - 1) : 0;
+            const smilesIndex = smilesSmilesIndex !== -1 ? 
+                              Math.min(smilesSmilesIndex, parts.length - 1) : 1;
+            
             const name = parts[nameIndex] || `Ligante_${smilesList.length + 1}`;
             const smile = parts[smilesIndex];
-
+            
+            // Valida e adiciona
             if (smile && isValidSmiles(smile)) {
-              smilesList.push({ smiles: smile, name: name, originalIndex: smilesList.length + 1 });
+              smilesList.push({ 
+                smiles: smile, 
+                name: name,
+                originalIndex: smilesList.length + 1
+              });
               console.log(`✅ SMILES ${smilesList.length}: "${name}" = ${smile.substring(0, 30)}...`);
             } else if (smile) {
               console.warn(`❌ SMILES inválido ignorado na linha ${i}: ${smile.substring(0, 50)}`);
             }
           }
-        } else {
-          // Caso raro: linha sem separator, considere como SMILES solo
-          const smile = trimmed;
-          if (smile && isValidSmiles(smile)) {
-            smilesList.push({ smiles: smile, name: `Ligante_${smilesList.length + 1}`, originalIndex: smilesList.length + 1 });
+        } else if (line && line.length > 10) {
+          // Possível SMILES sem separador (apenas uma coluna)
+          const smile = line;
+          if (isValidSmiles(smile)) {
+            smilesList.push({ 
+              smiles: smile, 
+              name: `Ligante_${smilesList.length + 1}`,
+              originalIndex: smilesList.length + 1
+            });
             console.log(`✅ SMILES ${smilesList.length} (sem nome): ${smile.substring(0, 30)}...`);
           }
         }
       }
-
+      
       // Processa proteínas (após a transição)
       if (currentSection === 'proteins') {
-        // Ignora headers de proteína explícitos
-        const lowerTrimmed = trimmed.toLowerCase();
-        const isProteinHeader = proteinHeaders.some(header =>
-          lowerTrimmed === header || lowerTrimmed === header + separator || lowerTrimmed.startsWith(header + separator)
-        );
-
+        // Ignora linhas que são headers de proteína
+        const isProteinHeader = proteinHeaders.some(header => 
+          lowerLine === header || 
+          lowerLine === header + separator ||
+          lowerLine.startsWith(header + separator));
+        
         if (isProteinHeader) {
-          console.log(`Header de proteína ignorado: "${trimmed}"`);
+          console.log(`Header de proteína ignorado: "${line}"`);
           continue;
         }
-
+        
+        // Ignora linhas de transição
+        if (line === ';' || line === separator) {
+          continue;
+        }
+        
         // Remove o separador do final se existir
-        let proteinSeq = trimmed;
+        let proteinSeq = line;
         if (proteinSeq.endsWith(separator)) {
           proteinSeq = proteinSeq.slice(0, -1);
         }
-
+        
         // Remove qualquer caractere não-alfabético do início/fim (mantendo apenas AA)
         proteinSeq = proteinSeq.replace(/^[^A-Za-z]+|[^A-Za-z]+$/g, '');
-
+        
         if (proteinSeq.length > 0 && isValidProteinSequence(proteinSeq)) {
           proteins.push(proteinSeq);
           console.log(`✅ Proteína ${proteins.length} (${proteinSeq.length} aa): ${proteinSeq.substring(0, 30)}...`);
@@ -195,6 +208,7 @@ function processCSVContent(csvContent, filename) {
         }
       }
     }
+
     console.log('=== RESUMO FINAL ===');
     console.log(`SMILES encontrados: ${smilesList.length}`);
     console.log(`Proteínas encontradas: ${proteins.length}`);
@@ -427,127 +441,129 @@ function generateCombinations(proteins, smilesList) {
   return combinations;
 }
 
-// // Mostra preview dos dados e opções
-function showCSVPreview(combinations, proteins, smiles, filename) {
-  // Guarda globalmente para processAllCSVData usar depois
-  window.csvData = combinations || [];
-  window.csvProteins = proteins || [];
-  window.csvSmiles = smiles || [];
-  window.csvFilename = filename || 'batch';
-
-  // Cria modal container se não existir
-  let modalWrapper = document.getElementById('csvPreviewModal');
-  if (!modalWrapper) {
-    modalWrapper = document.createElement('div');
-    modalWrapper.id = 'csvPreviewModal';
-    document.body.appendChild(modalWrapper);
-  }
-
-  // Se ainda não tem estrutura interna (ou foi limpa), cria
-  if (!modalWrapper.querySelector('.modal-content')) {
-    modalWrapper.innerHTML = `
-      <div class="modal fade" id="csvPreviewModalInner" tabindex="-1">
-        <div class="modal-dialog modal-xl">
-          <div class="modal-content">
-
-            <div class="modal-header">
-              <h5 class="modal-title">Pré-visualização do CSV</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-
-            <div class="modal-body" id="csvPreviewContent"></div>
-
-            <div class="modal-footer">
-              <input type="text" id="baseFilename" class="form-control me-auto" style="max-width: 320px;" placeholder="Nome base para arquivos" value="${(filename || '').replace('.csv','')}">
-              <button class="btn btn-success" id="csvPreviewDownloadBtn">Baixar JSONs</button>
-              <button class="btn btn-primary" id="csvPreviewProcessBtn">Processar no servidor</button>
-              <button class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-            </div>
-
+// Mostra preview dos dados e opções
+function showCSVPreview(combinations, proteins, smilesList, filename) {
+  const totalCombinations = combinations.length;
+  
+  const previewContent = `
+    <div class="alert alert-info">
+      <h5><i class="fas fa-table me-2"></i>Preview das Combinações</h5>
+      <p>
+        <strong>${proteins.length}</strong> proteínas × <strong>${smilesList.length}</strong> SMILES = 
+        <strong>${totalCombinations}</strong> combinações totais
+      </p>
+      
+      <div class="row">
+        <div class="col-md-6">
+          <h6>Lista de Proteínas (${proteins.length}):</h6>
+          <div style="max-height: 150px; overflow-y: auto;" class="small">
+            ${proteins.map((p, i) => `
+              <div class="mb-1">
+                <strong>P${i + 1}:</strong> 
+                <span title="${p}">${p.substring(0, 40)}${p.length > 40 ? '...' : ''}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="col-md-6">
+          <h6>Lista de SMILES (${smilesList.length}):</h6>
+          <div style="max-height: 150px; overflow-y: auto;" class="small">
+            ${smilesList.map((s, i) => `
+              <div class="mb-1">
+                <strong>S${i + 1}:</strong> 
+                <span title="${s}">${s.substring(0, 40)}${s.length > 40 ? '...' : ''}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+      
+      <div class="mt-3">
+        <h6>Primeiras Combinações (${totalCombinations} no total):</h6>
+        <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+          <table class="table table-sm table-striped">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Combinação</th>
+                <th>Proteína</th>
+                <th>SMILES</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${combinations.slice(0, 10).map((item, index) => `
+                <tr>
+                  <td>${index + 1}</td>
+                  <td><small class="text-muted">${item.combination}</small></td>
+                  <td title="${item.protein}">P${proteins.indexOf(item.protein) + 1}</td>
+                  <td title="${item.smiles}">S${smilesList.indexOf(item.smiles) + 1}</td>
+                </tr>
+              `).join('')}
+              ${combinations.length > 10 ? `
+                <tr>
+                  <td colspan="4" class="text-center text-muted">
+                    ... e mais ${combinations.length - 10} combinações
+                  </td>
+                </tr>
+              ` : ''}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    
+    <div class="mb-3">
+      <label for="baseFilename" class="form-label">Nome base para os arquivos:</label>
+      <input type="text" class="form-control" id="baseFilename" value="${filename.replace('.csv', '')}">
+    </div>
+    
+    <div class="alert alert-warning">
+      <small>
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <strong>Atenção:</strong> Serão gerados <strong>${totalCombinations}</strong> arquivos JSON, 
+        um para cada combinação proteína-SMILES.
+      </small>
+    </div>
+    
+    <div class="d-grid gap-2">
+      <button class="btn btn-success" onclick="processAllCSVData('download')">
+        <i class="fas fa-download me-2"></i>Baixar todos os JSONs (${totalCombinations})
+      </button>
+      <button class="btn btn-primary" onclick="processAllCSVData('process')">
+        <i class="fas fa-play me-2"></i>Processar todos no servidor (${totalCombinations})
+      </button>
+    </div>
+  `;
+  
+  // Cria ou atualiza o modal de preview
+  let previewModal = document.getElementById('csvPreviewModal');
+  if (!previewModal) {
+    previewModal = document.createElement('div');
+    previewModal.className = 'modal fade';
+    previewModal.id = 'csvPreviewModal';
+    previewModal.innerHTML = `
+      <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Combinações do CSV - Produto Cartesiano</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body" id="csvPreviewContent">
           </div>
         </div>
       </div>
     `;
+    document.body.appendChild(previewModal);
   }
-
-  // Preenche conteúdo do preview
-  const content = document.getElementById('csvPreviewContent');
-  if (!content) {
-    console.error('csvPreviewContent não encontrado');
-    return;
-  }
-
-  const previewHTML = `
-    <div class="mb-3">
-      <h6>Resumo</h6>
-      <p>
-        <strong>${smiles.length}</strong> SMILES &nbsp; × &nbsp;
-        <strong>${proteins.length}</strong> Proteínas &nbsp; = &nbsp;
-        <strong>${combinations.length}</strong> combinações
-      </p>
-    </div>
-
-    <div class="row">
-      <div class="col-md-6">
-        <h6>SMILES</h6>
-        <div style="max-height: 200px; overflow-y: auto;" class="small">
-          ${smiles.map((s,i) => {
-            const smile = (s && typeof s.smiles === 'string') ? s.smiles : (typeof s === 'string' ? s : '');
-            const short = smile.substring(0, 80);
-            return `<div class="mb-1"><strong>S${i+1}:</strong> <span title="${smile}">${short}${smile.length>80?'...':''}</span></div>`;
-          }).join('')}
-        </div>
-      </div>
-      <div class="col-md-6">
-        <h6>Proteínas</h6>
-        <div style="max-height: 200px; overflow-y: auto;" class="small">
-          ${proteins.map((p,i) => `<div class="mb-1"><strong>P${i+1}:</strong> ${p.substring(0,80)}${p.length>80?'...':''}</div>`).join('')}
-        </div>
-      </div>
-    </div>
-  `;
-
-  content.innerHTML = previewHTML;
-
-  // Inicializa modal bootstrap e mostra
-  const modalEl = modalWrapper.querySelector('#csvPreviewModalInner');
-  const modalObj = new bootstrap.Modal(modalEl, { keyboard: false });
-  modalObj.show();
-
-  // Conecta os botões (remove handlers anteriores antes de adicionar)
-  const downloadBtn = document.getElementById('csvPreviewDownloadBtn');
-  const processBtn = document.getElementById('csvPreviewProcessBtn');
-  const baseFilenameInput = document.getElementById('baseFilename');
-
-  // remover event listeners antigos (defensivo)
-  downloadBtn.replaceWith(downloadBtn.cloneNode(true));
-  processBtn.replaceWith(processBtn.cloneNode(true));
-
-  const newDownloadBtn = document.getElementById('csvPreviewDownloadBtn');
-  const newProcessBtn = document.getElementById('csvPreviewProcessBtn');
-
-  newDownloadBtn.addEventListener('click', () => {
-    // atualiza nome base e inicia download
-    const base = (document.getElementById('baseFilename').value || 'batch').trim();
-    document.getElementById('baseFilename').value = base;
-    // define global para processAllCSVData usar como baseFilename
-    // (processAllCSVData lê o input diretamente)
-    processAllCSVData('download');
-    // fecha modal
-    const inst = bootstrap.Modal.getInstance(modalEl);
-    if (inst) inst.hide();
-  });
-
-  newProcessBtn.addEventListener('click', () => {
-    const base = (document.getElementById('baseFilename').value || 'batch').trim();
-    document.getElementById('baseFilename').value = base;
-    // inicia processamento no servidor
-    processAllCSVData('process');
-    // o próprio processAllCSVData exibirá a modal de progresso,
-    // aqui só escondemos a pré-visualização
-    const inst = bootstrap.Modal.getInstance(modalEl);
-    if (inst) inst.hide();
-  });
+  
+  document.getElementById('csvPreviewContent').innerHTML = previewContent;
+  
+  // Armazena os dados globalmente para uso posterior
+  window.csvData = combinations;
+  
+  // Mostra o modal
+  const modal = new bootstrap.Modal(previewModal);
+  modal.show();
 }
 
 
