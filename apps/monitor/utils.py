@@ -22,6 +22,8 @@ from slurm.utils import run_remote_cmd
 
 socketio = SocketIO(app, cors_allowed_origins="*")
 
+os.environ['SCHEDULER_DISABLED'] = '1'
+
 # ==============================================================
 # SISTEMA DE MONITORAMENTO
 # ==============================================================
@@ -233,24 +235,96 @@ def get_pending_jobs():
 # MONITOR SLURM
 # ==============================================================
 
+# def get_slurm_job_status(job_id):
+#     """Obtém status de um job no Slurm via SSH"""
+#     try:
+#         if not job_id or str(job_id).strip() == '':
+#             print(f"[WARNING] Job ID vazio ou inválido: {job_id}")
+#             return None
+            
+#         job_id_str = str(job_id).strip()
+#         print(f"[DEBUG] Obtendo status do job Slurm: {job_id_str}")
+        
+#         # Primeiro tenta com squeue (jobs ativos)
+#         cmd_squeue = f"squeue -j {job_id_str} -o %T --noheader"
+#         exit_code, out_squeue, err_squeue = run_remote_cmd(cmd_squeue)
+        
+#         print(f"[DEBUG] squeue cmd: {cmd_squeue}")
+#         print(f"[DEBUG] squeue exit: {exit_code}")
+#         print(f"[DEBUG] squeue output: '{out_squeue}'")
+#         print(f"[DEBUG] squeue error: '{err_squeue}'")
+        
+#         if exit_code == 0 and out_squeue and out_squeue.strip():
+#             status = out_squeue.strip()
+#             print(f"[DEBUG] Status do squeue: {status}")
+#             return status
+        
+#         # Se não encontrou no squeue, tenta com sacct (jobs históricos)
+#         cmd_sacct = f"sacct -j {job_id_str} -o State --noheader --parsable2"
+#         exit_code, out_sacct, err_sacct = run_remote_cmd(cmd_sacct)
+        
+#         print(f"[DEBUG] sacct cmd: {cmd_sacct}")
+#         print(f"[DEBUG] sacct exit: {exit_code}")
+#         print(f"[DEBUG] sacct output: '{out_sacct}'")
+#         print(f"[DEBUG] sacct error: '{err_sacct}'")
+        
+#         if exit_code == 0 and out_sacct and out_sacct.strip():
+#             states = [s.strip() for s in out_sacct.strip().split('\n') if s.strip()]
+#             if states:
+#                 # Pega o primeiro estado válido
+#                 for state in states:
+#                     if state and state != '':
+#                         status = state.split('+')[0]
+#                         print(f"[DEBUG] Status do sacct: {status}")
+#                         return status
+        
+#         print(f"[DEBUG] Nenhum status encontrado para job {job_id_str}")
+#         return None
+        
+#     except Exception as e:
+#         print(f"[ERROR] Erro ao obter status do job {job_id}: {e}")
+#         import traceback
+#         traceback.print_exc()
+#         return None
+
 def get_slurm_job_status(job_id):
     """Obtém status de um job no Slurm via SSH"""
     try:
-        cmd_squeue = f"squeue -j {job_id} -o %T --noheader"
-        exit_code, out_squeue, _ = run_remote_cmd(cmd_squeue)
+        if not job_id or str(job_id).strip() == '':
+            return None
+            
+        job_id_str = str(job_id).strip()
         
-        if exit_code == 0 and out_squeue.strip():
+        # Primeiro tenta com squeue (jobs ativos)
+        cmd_squeue = f"squeue -j {job_id_str} -o %T --noheader"
+        exit_code, out_squeue, err_squeue = run_remote_cmd(cmd_squeue)
+        
+        # Se o comando falhou com "Invalid job id", o job não existe mais
+        if "Invalid job id" in err_squeue:
+            return None  # Job não existe mais no Slurm
+        
+        if exit_code == 0 and out_squeue and out_squeue.strip():
             return out_squeue.strip()
-        cmd_sacct = f"sacct -j {job_id} -o State --noheader --parsable2"
-        exit_code, out_sacct, _ = run_remote_cmd(cmd_sacct)
         
-        if exit_code == 0 and out_sacct.strip():
+        # Se accounting estiver desabilitado, não tente sacct
+        if "accounting storage is disabled" in err_squeue:
+            return None
+        
+        # Tenta com sacct (jobs históricos) apenas se não houver erro de accounting
+        cmd_sacct = f"sacct -j {job_id_str} -o State --noheader --parsable2"
+        exit_code, out_sacct, err_sacct = run_remote_cmd(cmd_sacct)
+        
+        if exit_code == 0 and out_sacct and out_sacct.strip():
             states = [s.strip() for s in out_sacct.strip().split('\n') if s.strip()]
             if states:
-                return states[0].split('+')[0]
+                for state in states:
+                    if state and state != '':
+                        return state.split('+')[0]
         
         return None
+        
     except Exception as e:
+        print(f"[ERROR] Erro ao obter status do job {job_id}: {e}")
         return None
 
 def get_slurm_queue():
@@ -269,6 +343,92 @@ def get_slurm_queue():
         print(f"Erro ao obter fila Slurm: {e}")
         return []
 
+# def update_job_status_from_slurm():
+#     """Atualiza status dos jobs no banco baseado no Slurm"""
+#     try:
+#         conn = get_db_connection()
+#         cursor = conn.cursor()
+        
+#         # Busca jobs com job_id preenchido
+#         cursor.execute("""
+#             SELECT id, base_name, job_id, status, user_id
+#             FROM uploads 
+#             WHERE job_id IS NOT NULL AND status IN ('PENDENTE', 'PROCESSANDO')
+#         """)
+        
+#         jobs = cursor.fetchall()
+#         updated_count = 0
+        
+#         for job_id, base_name, slurm_job_id, current_status, user_id in jobs:
+#             # Inicializar a variável
+#             slurm_status = None
+            
+#             try:
+#                 slurm_status = get_slurm_job_status(slurm_job_id)
+#             except Exception as e:
+#                 print(f"[ERROR] Erro ao obter status para job {slurm_job_id}: {e}")
+#                 continue  # Pula para o próximo job
+            
+#             # DEBUG: Adicionar log para verificar o que está sendo retornado
+#             print(f"[DEBUG1] Job {slurm_job_id} -> Slurm status: {slurm_status}")
+            
+#             # SE slurm_status for None ou vazio, pule este job
+#             if not slurm_status:
+#                 print(f"[DEBUG2] Status vazio para job {slurm_job_id}, pulando...")
+#                 continue
+            
+#             # Inicializar new_status com o valor atual
+#             new_status = current_status
+            
+#             # Mapear status Slurm para nossos status
+#             if slurm_status in ['PENDING', 'PD', 'CF', 'S']:
+#                 new_status = 'PENDENTE'
+#             elif slurm_status in ['RUNNING', 'R', 'ST', 'CG']:
+#                 new_status = 'PROCESSANDO'
+#             elif slurm_status in ['COMPLETED', 'CD']:
+#                 new_status = 'COMPLETO'
+#             elif slurm_status in ['FAILED', 'F', 'TO', 'NF', 'CA', 'DL']:
+#                 new_status = 'ERRO'
+#             else:
+#                 print(f"[DEBUG3] Status desconhecido: {slurm_status}, mantendo {current_status}")
+            
+#             # DEBUG: Mostrar mapeamento
+#             print(f"[DEBUG4] Slurm status: {slurm_status}, Mapeando de {current_status} para: {new_status}")
+            
+#             # Atualizar se mudou
+#             if new_status != current_status:
+#                 updated_at = datetime.now().isoformat()
+                
+#                 cursor.execute(
+#                     "UPDATE uploads SET status = ?, updated_at = ? WHERE id = ?",
+#                     (new_status, updated_at, job_id)
+#                 )
+                
+#                 # Log da mudança
+#                 log_action(
+#                     user_id, 
+#                     f'Status atualizado: {current_status} → {new_status}', 
+#                     f'Job {base_name} (Slurm: {slurm_job_id})'
+#                 )
+                
+#                 print(f"[SLURM MONITOR] Job {base_name} atualizado: {current_status} -> {new_status}")
+#                 updated_count += 1
+                
+#                 # Se terminou, verificar output
+#                 if new_status in ['COMPLETO', 'ERRO']:
+#                     check_job_output(slurm_job_id, base_name, user_id, new_status)
+        
+#         conn.commit()
+#         conn.close()
+        
+#         if updated_count > 0:
+#             print(f"[SLURM MONITOR] {updated_count} jobs atualizados")
+            
+#     except Exception as e:
+#         print(f"[SLURM MONITOR] Erro ao atualizar status: {e}")
+#         import traceback
+#         traceback.print_exc()
+
 def update_job_status_from_slurm():
     """Atualiza status dos jobs no banco baseado no Slurm"""
     try:
@@ -286,43 +446,80 @@ def update_job_status_from_slurm():
         updated_count = 0
         
         for job_id, base_name, slurm_job_id, current_status, user_id in jobs:
-            slurm_status = get_slurm_job_status(slurm_job_id)
+            # SEMPRE inicializar slurm_status como None
+            slurm_status = None
             
-            if slurm_status:
-                # Mapear status Slurm para nossos status
-                if slurm_status in ['PENDING', 'PD', 'CF', 'S']:
-                    new_status = 'PENDENTE'
-                elif slurm_status in ['RUNNING', 'R', 'ST', 'CG']:
-                    new_status = 'PROCESSANDO'
-                elif slurm_status in ['COMPLETED', 'CD']:
-                    new_status = 'COMPLETO'
-                elif slurm_status in ['FAILED', 'F', 'TO', 'NF', 'CA', 'DL']:
-                    new_status = 'ERRO'
-                else:
-                    new_status = current_status
+            try:
+                slurm_status = get_slurm_job_status(slurm_job_id)
+                print(f"[DEBUG] Job {slurm_job_id} -> Slurm status: {slurm_status}")
+            except Exception as e:
+                print(f"[ERROR] Erro ao obter status para job {slurm_job_id}: {e}")
+                # Se deu erro, marca como ERRO para não ficar travado
+                new_status = 'ERRO'
                 
-                # Atualizar se mudou
-                if new_status != current_status:
-                    updated_at = datetime.now().isoformat()
+                cursor.execute(
+                    "UPDATE uploads SET status = ?, updated_at = ?, error_log = ? WHERE id = ?",
+                    (new_status, datetime.now().isoformat(), f"Erro ao obter status: {e}", job_id)
+                )
+                updated_count += 1
+                continue  # Pula para o próximo job
+            
+            # SE slurm_status for None, vazio, ou erro no Slurm
+            if not slurm_status:
+                print(f"[WARNING] Status vazio para job {slurm_job_id}. Verificando se job existe...")
+                
+                # Se o job estava PROCESSANDO e agora não existe mais no Slurm, provavelmente terminou
+                if current_status == 'PROCESSANDO':
+                    # Verifica se o output foi gerado
+                    if check_job_completed_on_server(base_name, user_id):
+                        new_status = 'COMPLETO'
+                    else:
+                        new_status = 'ERRO'
                     
                     cursor.execute(
                         "UPDATE uploads SET status = ?, updated_at = ? WHERE id = ?",
-                        (new_status, updated_at, job_id)
+                        (new_status, datetime.now().isoformat(), job_id)
                     )
                     
-                    # Log da mudança
-                    log_action(
-                        user_id, 
-                        f'Status atualizado: {current_status} → {new_status}', 
-                        f'Job {base_name} (Slurm: {slurm_job_id})'
-                    )
-                    
-                    print(f"[SLURM MONITOR] Job {base_name} atualizado: {current_status} -> {new_status}")
+                    print(f"[AUTO-FIX] Job {base_name} marcado como {new_status} (não encontrado no Slurm)")
                     updated_count += 1
-                    
-                    # Se terminou, verificar output
-                    if new_status in ['CONCLUIDO', 'ERRO']:
-                        check_job_output(slurm_job_id, base_name, user_id, new_status)
+                
+                continue  # Pula para o próximo job
+            
+            # Mapear status Slurm para nossos status
+            new_status = current_status  # Mantém o atual por padrão
+            
+            if slurm_status in ['PENDING', 'PD', 'CF', 'S']:
+                new_status = 'PENDENTE'
+            elif slurm_status in ['RUNNING', 'R', 'ST', 'CG']:
+                new_status = 'PROCESSANDO'
+            elif slurm_status in ['COMPLETED', 'CD']:
+                new_status = 'COMPLETO'
+            elif slurm_status in ['FAILED', 'F', 'TO', 'NF', 'CA', 'DL']:
+                new_status = 'ERRO'
+            
+            # Atualizar se mudou
+            if new_status != current_status:
+                updated_at = datetime.now().isoformat()
+                
+                cursor.execute(
+                    "UPDATE uploads SET status = ?, updated_at = ? WHERE id = ?",
+                    (new_status, updated_at, job_id)
+                )
+                
+                # Log da mudança
+                log_action(
+                    user_id, 
+                    f'Status atualizado: {current_status} → {new_status}', 
+                    f'Job {base_name} (Slurm: {slurm_job_id})'
+                )
+                
+                print(f"[SLURM MONITOR] Job {base_name} atualizado: {current_status} -> {new_status}")
+                updated_count += 1
+                
+                # Se terminou, verificar output
+                if new_status in ['COMPLETO', 'ERRO']:
+                    check_job_output(slurm_job_id, base_name, user_id, new_status)
         
         conn.commit()
         conn.close()
@@ -332,6 +529,45 @@ def update_job_status_from_slurm():
             
     except Exception as e:
         print(f"[SLURM MONITOR] Erro ao atualizar status: {e}")
+        import traceback
+        traceback.print_exc()
+
+def check_job_completed_on_server(base_name, user_id):
+    """Verifica se o job gerou output no servidor mesmo sem info do Slurm"""
+    try:
+        from conections import get_ssh_connection
+        import paramiko
+        
+        user_name = None
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM users WHERE id = ?", (user_id,))
+        user = cursor.fetchone()
+        if user:
+            user_name = user[0].replace(' ', '')
+        conn.close()
+        
+        if not user_name:
+            return False
+            
+        ssh = get_ssh_connection()
+        
+        # Verifica se o diretório de output existe e tem arquivos
+        output_dir = f"{ALPHAFOLD_OUTPUT_BASE}/{user_name}/{base_name}/{ALPHAFOLD_PREDICTION}"
+        check_cmd = f"if [ -d \"{output_dir}\" ]; then find \"{output_dir}\" -name \"*.cif\" -o -name \"*.pdb\" | head -1 | wc -l; else echo 0; fi"
+        
+        stdin, stdout, stderr = ssh.exec_command(check_cmd)
+        result = stdout.read().decode().strip()
+        ssh.close()
+        
+        has_files = int(result) > 0 if result.isdigit() else False
+        
+        print(f"[CHECK OUTPUT] Job {base_name} tem arquivos de output: {has_files}")
+        return has_files
+        
+    except Exception as e:
+        print(f"[ERROR] Erro ao verificar output: {e}")
+        return False
 
 def check_job_output(job_id, base_name, user_id, status):
     """Verifica output do job terminado"""
@@ -481,6 +717,41 @@ def cancel_job(job_id, user_id=None):
 # SCHEDULER DO SLURM
 # ==============================================================
 
+# try:
+#     from apscheduler.schedulers.background import BackgroundScheduler
+    
+#     scheduler = BackgroundScheduler()
+    
+#     @scheduler.scheduled_job('interval', seconds=30)
+#     def scheduled_status_update():
+#         """Atualiza status dos jobs periodicamente"""
+#         with app.app_context():
+#             try:
+#                 update_job_status_from_slurm()
+#             except Exception as e:
+#                 print(f"[SCHEDULER] Erro: {e}")
+    
+#     def start_slurm_monitor():
+#         """Inicia o monitor do Slurm"""
+#         if not scheduler.running:
+#             scheduler.start()
+#             print("[SLURM MONITOR] Iniciado")
+    
+#     def stop_slurm_monitor():
+#         """Para o monitor do Slurm"""
+#         if scheduler.running:
+#             scheduler.shutdown()
+#             print("[SLURM MONITOR] Parado")
+    
+# except ImportError:
+#     print("[AVISO] APScheduler não instalado. Monitor Slurm desabilitado.")
+    
+#     def start_slurm_monitor():
+#         print("[SLURM MONITOR] APScheduler não instalado. Use: pip install apscheduler")
+    
+#     def stop_slurm_monitor():
+#         pass
+
 try:
     from apscheduler.schedulers.background import BackgroundScheduler
     
@@ -489,7 +760,7 @@ try:
     @scheduler.scheduled_job('interval', seconds=30)
     def scheduled_status_update():
         """Atualiza status dos jobs periodicamente"""
-        with app.app_context():
+        with app.app_context():  # ADICIONAR CONTEXTO AQUI
             try:
                 update_job_status_from_slurm()
             except Exception as e:
@@ -507,6 +778,13 @@ try:
             scheduler.shutdown()
             print("[SLURM MONITOR] Parado")
     
+    # Inicia automaticamente ao importar - COM CONTEXTO
+    try:
+        with app.app_context():
+            start_slurm_monitor()
+    except Exception as e:
+        print(f"[ERRO] Falha ao iniciar monitor Slurm: {e}")
+        
 except ImportError:
     print("[AVISO] APScheduler não instalado. Monitor Slurm desabilitado.")
     

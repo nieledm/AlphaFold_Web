@@ -1,0 +1,168 @@
+<!-- templates/emergency_fix.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>🛠️ Fix de Emergência</h2>
+    <p class="text-muted">Correção manual de jobs problemáticos</p>
+    
+    <div class="alert alert-warning">
+        <strong>Atenção!</strong> Use esta página apenas se o sistema automático falhar.
+    </div>
+    
+    <div class="card mt-3">
+        <div class="card-header bg-danger text-white">
+            <h5>Jobs Problemáticos</h5>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nome</th>
+                        <th>Job Slurm</th>
+                        <th>Status</th>
+                        <th>Criado em</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for job in stuck_jobs %}
+                    <tr>
+                        <td>{{ job.id }}</td>
+                        <td>{{ job.base_name }}</td>
+                        <td>{{ job.job_id }}</td>
+                        <td>
+                            <span class="badge bg-{{ 'warning' if job.status == 'PENDENTE' else 'info' }}">
+                                {{ job.status }}
+                            </span>
+                        </td>
+                        <td>{{ job.created_at }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-success btn-force-status" 
+                                        data-job-id="{{ job.id }}"
+                                        data-base-name="{{ job.base_name }}"
+                                        data-status="COMPLETO">
+                                    ✓ Completar
+                                </button>
+                                <button class="btn btn-danger btn-force-status"
+                                        data-job-id="{{ job.id }}"
+                                        data-base-name="{{ job.base_name }}"
+                                        data-status="ERRO">
+                                    ✗ Erro
+                                </button>
+                                {% if job.job_id %}
+                                <button class="btn btn-warning btn-cancel-ssh"
+                                        data-job-id="{{ job.job_id }}"
+                                        data-base-name="{{ job.base_name }}">
+                                    Cancelar SSH
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="mt-3">
+        <a href="{{ url_for('monitor.status') }}" class="btn btn-secondary">
+            ← Voltar para Status
+        </a>
+    </div>
+</div>
+
+<!-- Modal de confirmação -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Ação</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmMessage"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="confirmAction">Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Forçar status
+    document.querySelectorAll('.btn-force-status').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const jobId = this.dataset.jobId;
+            const baseName = this.dataset.baseName;
+            const status = this.dataset.status;
+            
+            document.getElementById('confirmMessage').textContent = 
+                `Deseja realmente marcar o job "${baseName}" como ${status}?`;
+            
+            const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
+            modal.show();
+            
+            document.getElementById('confirmAction').onclick = function() {
+                fetch('/admin/force_update_status', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        job_id: jobId,
+                        base_name: baseName,
+                        status: status
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        location.reload();
+                    } else {
+                        alert('Erro: ' + data.error);
+                    }
+                })
+                .catch(error => alert('Erro: ' + error));
+                
+                modal.hide();
+            };
+        });
+    });
+    
+    // Cancelar via SSH
+    document.querySelectorAll('.btn-cancel-ssh').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const jobId = this.dataset.jobId;
+            const baseName = this.dataset.baseName;
+            
+            if (!confirm(`Cancelar job Slurm ${jobId} via SSH?`)) return;
+            
+            fetch('/admin/cancel_job_ssh', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    job_id: jobId,
+                    base_name: baseName
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('Erro: ' + data.error);
+                }
+            })
+            .catch(error => alert('Erro: ' + error));
+        });
+    });
+});
+</script>
+{% endblock %}

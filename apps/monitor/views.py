@@ -1,7 +1,7 @@
 from flask import render_template, session, redirect, url_for, flash, request, jsonify, current_app
 from database import get_db_connection
 from apps.logs.utils import log_action
-from .utils import get_system_status, get_job_counts, get_pending_jobs, parse_system_status
+from .utils import get_system_status, get_job_counts, get_pending_jobs, parse_system_status, get_slurm_job_status, check_job_completed_on_server
 from datetime import datetime, timedelta
 
 from flask import Blueprint
@@ -280,3 +280,98 @@ def api_slurm_queue():
     return jsonify({
         'slurm_queue': queue
     })
+
+@monitor_bp.route('/admin/emergency_fix', methods=['GET'])
+def emergency_fix_page():
+    """Página de emergência para fix manual"""
+    if not session.get('is_admin'):
+        flash('Acesso negado', 'danger')
+        return redirect(url_for('monitor.status'))
+    
+    conn = get_db_connection()
+    
+    # Jobs problemáticos
+    stuck_jobs = conn.execute("""
+        SELECT id, base_name, job_id, status, created_at, user_id 
+        FROM uploads 
+        WHERE status IN ('PROCESSANDO', 'PENDENTE')
+        ORDER BY created_at DESC
+    """).fetchall()
+    
+    conn.close()
+    
+    return render_template('emergency_fix.html',
+                         titulo='Fix de Emergência',
+                         active_page='status',
+                         nome_usuario=session.get('user_name', 'Admin'),
+                         stuck_jobs=stuck_jobs)
+
+@monitor_bp.route('/admin/force_update_status', methods=['POST'])
+def force_update_status():
+    """Força atualização de status manual"""
+    if not session.get('is_admin'):
+        return jsonify({'error': 'Acesso negado'}), 403
+    
+    data = request.get_json()
+    job_id = data.get('job_id')
+    new_status = data.get('status')
+    base_name = data.get('base_name')
+    
+    try:
+        conn = get_db_connection()
+        conn.execute(
+            "UPDATE uploads SET status = ?, updated_at = ? WHERE id = ?",
+            (new_status, datetime.now().isoformat(), job_id)
+        )
+        conn.commit()
+        conn.close()
+        
+        # Log
+        log_action(session.get('user_id'), f'Status forçado para {new_status}', base_name)
+        
+        return jsonify({'success': True, 'message': f'Job {base_name} atualizado para {new_status}'})
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@monitor_bp.route('/admin/cancel_job_ssh', methods=['POST'])
+def cancel_job_ssh():
+    """Cancela job via SSH direto"""
+    if not session.get('is_admin'):
+        return jsonify({'error': 'Acesso negado'}), 403
+    
+    data = request.get_json()
+    slurm_job_id = data.get('job_id')
+    base_name = data.get('base_name')
+    
+    try:
+        # Conecta via SSH e cancela
+        from conections import get_ssh_connection
+        ssh = get_ssh_connection()
+        
+        # Tenta cancelar
+        cancel_cmd = f"scancel {slurm_job_id}"
+        stdin, stdout, stderr = ssh.exec_command(cancel_cmd)
+        exit_status = stdout.channel.recv_exit_status()
+        
+        ssh.close()
+        
+        if exit_status == 0:
+            # Atualiza no banco
+            conn = get_db_connection()
+            conn.execute(
+                "UPDATE uploads SET status = 'CANCELADO', updated_at = ? WHERE job_id = ?",
+                (datetime.now().isoformat(), slurm_job_id)
+            )
+            conn.commit()
+            conn.close()
+            
+            log_action(session.get('user_id'), 'Job cancelado via SSH', f'{base_name} (Slurm: {slurm_job_id})')
+            
+            return jsonify({'success': True, 'message': f'Job {slurm_job_id} cancelado com sucesso'})
+        else:
+            error_msg = stderr.read().decode()
+            return jsonify({'error': f'Falha ao cancelar: {error_msg}'}), 500
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

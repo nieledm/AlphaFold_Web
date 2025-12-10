@@ -369,44 +369,6 @@ function isValidProteinSequence(seq) {
   return true;
 }
 
-// Função auxiliar para validar SMILES
-function isValidSmiles(smiles) {
-  if (!smiles || typeof smiles !== 'string') return false;
-  
-  // Remove espaços
-  const cleanSmiles = smiles.trim();
-  if (cleanSmiles.length < 2) return false;
-  
-  // Verifica caracteres comuns em SMILES
-  const commonSmilesChars = /^[A-Za-z0-9@+\-\\/()\[\]=#$.%{}~ ]+$/;
-  
-  // Verifica se tem pelo menos alguns átomos comuns
-  const hasAtoms = /[CHONPSFBrClI]/i.test(cleanSmiles);
-  
-  return commonSmilesChars.test(cleanSmiles) && hasAtoms;
-}
-
-// Função auxiliar para validar sequência de proteína
-function isValidProteinSequence(seq) {
-  if (!seq || typeof seq !== 'string') return false;
-  
-  const cleanSeq = seq.trim();
-  if (cleanSeq.length < 10) return false; // Sequências muito curtas provavelmente não são proteínas
-  
-  // Verifica se contém principalmente aminoácidos
-  const aminoAcidRegex = /^[ACDEFGHIKLMNPQRSTVWY]+$/i;
-  return aminoAcidRegex.test(cleanSeq);
-}
-
-// Verifica se uma linha é um header
-function isHeaderLine(line) {
-  const headers = ['nome', 'name', 'nomes', 'names', 
-    'smiles', 'smile',
-    'title', 'titles', 
-    'sequencia', 'sequence', 'sequencias', 'sequences', 
-    'protein', 'proteina', 'proteinas', 'proteins'];
-  return headers.includes(line.toLowerCase());
-}
 
 // Gera combinações entre proteínas e SMILES (produto cartesiano)
 function generateCombinations(proteins, smilesList) {
@@ -550,7 +512,6 @@ function showCSVPreview(combinations, proteins, smiles, filename) {
   });
 }
 
-
 // Processa todos os dados do CSV
 function processAllCSVData(action) {
   const combinations = window.csvData;
@@ -633,7 +594,8 @@ function createJSONFromCSVItem(item, index) {
   
   // Cria a estrutura JSON
   const jsonData = {
-    name: `AlphaFold Prediction ${item.combination}`,
+    // name: `AlphaFold Prediction ${item.combination}`,
+    name: `AlphaFold Prediction`,
     modelSeeds: [42],
     sequences: [
       // Proteína
