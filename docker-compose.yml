@@ -12,7 +12,7 @@ services:
       - CLAMAV_HOST=central_clamav 
       - CLAMAV_PORT=3310
     volumes:
-      - ./database.db:/app/database.db
+      - ./:/app
     networks:
       - default
       - rede_seguranca
