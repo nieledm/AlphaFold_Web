@@ -2,8 +2,8 @@ import sqlite3
 import os
 import bcrypt
 
-
-DATABASE = 'database.db'
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATABASE = os.path.join(BASE_DIR, 'database.db')
 
 def configure_sqlite(conn):
     cursor = conn.cursor()
