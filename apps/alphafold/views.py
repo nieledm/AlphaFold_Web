@@ -124,15 +124,6 @@ def upload_file():
     sftp.close()
     ssh.close()
 
-    # # Salva no banco
-    # conn = get_db_connection()
-    # conn.execute(
-    #     'INSERT INTO uploads (user_id, file_name, base_name, status, created_at) VALUES (?, ?, ?, ?, ?)',
-    #     (session['user_id'], filename, base_name, 'PENDENTE', now_str)
-    # )
-    # conn.commit()
-    # conn.close()
-
     log_action(user_id, 'Arquivo JSON Uploaded', f'Nome: {filename}, BaseName: {base_name}')
 
     uid = 0  # root
@@ -152,10 +143,6 @@ def upload_file():
         f"--output_dir=/root/af_output/{base_name} "
     )
    
-#    Antiga submissão de job sem slurm
-    # Thread(target=run_alphafold_in_background, args=(
-    #     command, user_name_clean, user_email, base_name, user_id
-    # )).start()
 
     # Submete job via SLURM
     job_id = submit_slurm_job(command, user_name_clean, base_name)

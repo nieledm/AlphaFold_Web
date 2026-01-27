@@ -1,0 +1,22 @@
+services:
+  app:
+    container_name: AlphaFold_Web
+    build: .
+    restart: unless-stopped
+    ports:
+      - "5055:5055"
+    env_file:
+      - .env
+    environment:
+      - FLASK_ENV=production
+      - CLAMAV_HOST=central_clamav 
+      - CLAMAV_PORT=3310
+    volumes:
+      - ./database.db:/app/database.db
+    networks:
+      - default
+      - rede_seguranca
+
+networks:
+  rede_seguranca:
+    external: true

@@ -189,7 +189,3 @@ No cliente, os handlers atualizam o DOM (barras, tabelas e badges). O projeto fo
 - Melhorar controle de threads com `asyncio`/`eventlet`/`gevent` para escalabilidade.
 - Adicionar paginação de logs e métricas históricas (prometheus/grafana).
 - Migrar o backend Socket.IO para namespaces ou salas para reduzir ruído entre páginas.
-
----
-
-Se quiser, eu adapto o README com instruções específicas do seu ambiente (ex.: caminhos do AlphaFold, autenticação SSH, exemplos de `.env`) — diga o que prefere que eu adicione.
