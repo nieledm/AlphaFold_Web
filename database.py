@@ -120,3 +120,8 @@ def get_user_by_email(email):
         c = conn.cursor()
         c.execute('SELECT * FROM users WHERE email = ?', (email,))
         return c.fetchone()
+
+if __name__ == "__main__":
+    print("Iniciando a criação do banco de dados...")
+    init_db()
+    print("Banco de dados criado/atualizado com sucesso!")
