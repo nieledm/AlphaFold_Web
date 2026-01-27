@@ -1,23 +1,35 @@
 import sqlite3
+import bcrypt
 
-# Conecta ao banco existente
-conn = sqlite3.connect('D:/CQMED/AFweb/database.db')
-cursor = conn.cursor()
+DB_PATH = 'database.db' 
 
-# Verifica se já existe algum admin
-cursor.execute("SELECT * FROM users WHERE is_admin = 1")
-admin = cursor.fetchone()
+def create_admin():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
 
-if admin:
-    print("Já existe um admin cadastrado:", admin)
-else:
-    # Insere um usuário admin
-    cursor.execute("""
-        INSERT INTO users (name, email, password, is_admin, is_active)
-        VALUES (?, ?, ?, ?, ?)
-    """, ("admin", "admin@aplhafold3", "@Dmin514", 1, 1))
+    # Verifica se já existe admin
+    cursor.execute("SELECT * FROM users WHERE is_admin = 1")
+    admin = cursor.fetchone()
 
-    conn.commit()
-    print("Usuário admin criado com sucesso!")
+    if admin:
+        print(f"Já existe um admin cadastrado: {admin[2]} (ID: {admin[0]})")
+    else:
+        # DADOS DO USUÁRIO
+        email = "admin@aplhafold3"
+        raw_password = "@Dmin514"
+        
+        hashed_password = bcrypt.hashpw(raw_password.encode('utf-8'), bcrypt.gensalt())
 
-conn.close()
+        # Insere o usuário com a senha criptografada
+        cursor.execute("""
+            INSERT INTO users (name, email, password, is_admin, is_active)
+            VALUES (?, ?, ?, ?, ?)
+        """, ("admin", email, hashed_password, 1, 1))
+
+        conn.commit()
+        print(f"Sucesso! Usuário '{email}' criado com hash seguro.")
+
+    conn.close()
+
+if __name__ == "__main__":
+    create_admin()

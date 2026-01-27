@@ -1,5 +1,7 @@
 import sqlite3
 import os
+import bcrypt
+
 
 DATABASE = 'database.db'
 
@@ -89,6 +91,25 @@ def init_db():
             value TEXT
         )
     ''')
+
+    # --- Criar Admin Padrão se tabela vazia ---
+    c.execute('SELECT count(*) FROM users')
+    user_count = c.fetchone()[0]
+
+    if user_count == 0:
+        print("Banco vazio detectado. Criando usuário Admin padrão...")
+        admin_email = "admin@aplhafold3"
+        admin_pass = "@Dmin514"
+        
+        # Gera o hash
+        hashed = bcrypt.hashpw(admin_pass.encode('utf-8'), bcrypt.gensalt())
+        
+        c.execute('''
+            INSERT INTO users (name, email, password, is_admin, is_active)
+            VALUES (?, ?, ?, 1, 1)
+        ''', ("admin", admin_email, hashed))
+        print(f"admin criado: {admin_email} / {admin_pass}")
+    # -------------------------------------------------------
 
     conn.commit()
     conn.close()
