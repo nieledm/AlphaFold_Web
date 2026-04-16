@@ -1,7 +1,12 @@
-from flask import Flask
+import eventlet
+eventlet.monkey_patch()  # SEMPRE EM PRIMEIRO
+
+import os, sys
+from flask import Flask, request, g, jsonify
+from flask_socketio import SocketIO
 from itsdangerous import URLSafeTimedSerializer
 from dotenv import load_dotenv
-import os, sys
+from datetime import datetime
 
 load_dotenv()
 
@@ -40,6 +45,8 @@ else:
 app = Flask(__name__)
 SECRET_KEY = os.getenv('SECRET_KEY')
 app.secret_key = SECRET_KEY
+
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
 # Configurações AlphaFold
 ALPHAFOLD_SSH_HOST = os.getenv("ALPHAFOLD_SSH_HOST")

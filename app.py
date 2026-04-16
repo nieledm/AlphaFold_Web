@@ -1,3 +1,4 @@
+from config import app, socketio
 from flask import request, g, jsonify
 from database import get_db_connection, init_db
 from threading import Thread
@@ -70,7 +71,7 @@ def check_status():
 # SOCKET.IO (para atualização em tempo real)
 # ==============================================================
 
-socketio = SocketIO(app, cors_allowed_origins="*")
+# socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Importa e registra os eventos do Socket.IO
 from apps.monitor.socket_events import register_socketio_handlers
