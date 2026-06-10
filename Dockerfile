@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     libgfortran5 \
     openssh-client \
+    python3-eventlet \
     git \
     && rm -rf /var/lib/apt/lists/*
 

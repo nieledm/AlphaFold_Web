@@ -1,13 +1,13 @@
 APScheduler
 bcrypt
 dnspython
-eventlet
 Flask
 flask-cors
 flask-restx
 Flask-SocketIO
 flask-wtf
-gunicorn
+gunicorn==23.0.0
+eventlet==0.33.3
 itsdangerous
 paramiko
 plotly

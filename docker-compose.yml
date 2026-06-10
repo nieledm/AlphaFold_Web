@@ -13,6 +13,7 @@ services:
       - CLAMAV_PORT=3310
     volumes:
       - ./:/app
+      - /home/alphaFoldWeb/.ssh/id_ed25519:/home/alphaFoldWeb/.ssh/id_ed25519:ro
     networks:
       - default
       - rede_seguranca
