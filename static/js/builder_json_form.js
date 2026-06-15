@@ -467,8 +467,13 @@ function buildIonEntity(ids, sequence) {
 function processEntityCard(card, index, totalCopiesBefore = 0) {
   const entityType = card.querySelector('.entity-type').value;
   const copies = parseInt(card.querySelector('.copies').value) || 1;
-  const sequence = card.querySelector('.sequence').value.trim();
+  let sequence = card.querySelector('.sequence').value.trim();
   const seeds = parseInt(card.querySelector('.seeds').value) || 1;
+  
+  if (['protein', 'dna', 'rna'].includes(entityType)) {
+      // O \s+ pega qualquer espaço em branco, independente da quantidade
+      sequence = sequence.replace(/\s+/g, '').toUpperCase(); 
+  }
   
   // Validação básica
   if (!entityType || !sequence) {
@@ -515,8 +520,9 @@ function generateAllJSON() {
   const cards = document.querySelectorAll('.form-card');
   const entities = [];
   let hasErrors = false;
-  const allSeeds = new Set();
+  // const allSeeds = new Set();
   let totalCopiesBefore = 0; // Rastreia o total de cópias antes do card atual
+  let requestedSeedsCount = 1;
 
   // Processar cada card/entidade
   cards.forEach((card, index) => {
@@ -533,10 +539,10 @@ function generateAllJSON() {
 
           const seedInput = card.querySelector('.seeds');
             if (seedInput) {
-                const seedValue = parseInt(seedInput.value);
-                if (!isNaN(seedValue)) {
-                    allSeeds.add(seedValue);
-                }
+                const seedQuantity = parseInt(seedInput.value);
+                if (!isNaN(seedQuantity) && seedQuantity > requestedSeedsCount) {
+                  requestedSeedsCount = seedQuantity;
+              }
             }
       }
   });
@@ -546,9 +552,10 @@ function generateAllJSON() {
   }
 
   // Converter o Set de seeds para array
-  const seedsArray = Array.from(allSeeds);
-  if (seedsArray.length === 0) {
-      seedsArray.push(42); // Valor padrão se nenhum seed for especificado
+  const seedsArray = [];
+  for (let i = 0; i < requestedSeedsCount; i++) {
+      // Gera um número inteiro aleatório entre 1 e 999999
+      seedsArray.push(Math.floor(Math.random() * 999999) + 1);
   }
 
   // Criar o objeto JSON final conforme especificação AlphaFold 3

@@ -429,9 +429,113 @@ def get_slurm_queue():
 #         import traceback
 #         traceback.print_exc()
 
+# def update_job_status_from_slurm():
+#     """Atualiza status dos jobs no banco baseado no Slurm"""
+#     try:
+#         conn = get_db_connection()
+#         cursor = conn.cursor()
+        
+#         # Busca jobs com job_id preenchido
+#         cursor.execute("""
+#             SELECT id, base_name, job_id, status, user_id
+#             FROM uploads 
+#             WHERE job_id IS NOT NULL AND status IN ('PENDENTE', 'PROCESSANDO')
+#         """)
+        
+#         jobs = cursor.fetchall()
+#         updated_count = 0
+        
+#         for job_id, base_name, slurm_job_id, current_status, user_id in jobs:
+#             # SEMPRE inicializar slurm_status como None
+#             slurm_status = None
+            
+#             try:
+#                 slurm_status = get_slurm_job_status(slurm_job_id)
+#                 print(f"[DEBUG] Job {slurm_job_id} -> Slurm status: {slurm_status}")
+#             except Exception as e:
+#                 print(f"[ERROR] Erro ao obter status para job {slurm_job_id}: {e}")
+#                 # Se deu erro, marca como ERRO para não ficar travado
+#                 new_status = 'ERRO'
+                
+#                 cursor.execute(
+#                     "UPDATE uploads SET status = ?, updated_at = ?, error_log = ? WHERE id = ?",
+#                     (new_status, datetime.now().isoformat(), f"Erro ao obter status: {e}", job_id)
+#                 )
+#                 updated_count += 1
+#                 continue  # Pula para o próximo job
+            
+#             # SE slurm_status for None, vazio, ou erro no Slurm
+#             if not slurm_status:
+#                 print(f"[WARNING] Status vazio para job {slurm_job_id}. Verificando se job existe...")
+                
+#                 # Se o job estava PROCESSANDO e agora não existe mais no Slurm, provavelmente terminou
+#                 if current_status == 'PROCESSANDO':
+#                     # Verifica se o output foi gerado
+#                     if check_job_completed_on_server(base_name, user_id):
+#                         new_status = 'COMPLETO'
+#                     else:
+#                         new_status = 'ERRO'
+                    
+#                     cursor.execute(
+#                         "UPDATE uploads SET status = ?, updated_at = ? WHERE id = ?",
+#                         (new_status, datetime.now().isoformat(), job_id)
+#                     )
+                    
+#                     print(f"[AUTO-FIX] Job {base_name} marcado como {new_status} (não encontrado no Slurm)")
+#                     updated_count += 1
+                
+#                 continue  # Pula para o próximo job
+            
+#             # Mapear status Slurm para nossos status
+#             new_status = current_status  # Mantém o atual por padrão
+            
+#             if slurm_status in ['PENDING', 'PD', 'CF', 'S']:
+#                 new_status = 'PENDENTE'
+#             elif slurm_status in ['RUNNING', 'R', 'ST', 'CG']:
+#                 new_status = 'PROCESSANDO'
+#             elif slurm_status in ['COMPLETED', 'CD']:
+#                 new_status = 'COMPLETO'
+#             elif slurm_status in ['FAILED', 'F', 'TO', 'NF', 'CA', 'DL']:
+#                 new_status = 'ERRO'
+            
+#             # Atualizar se mudou
+#             if new_status != current_status:
+#                 updated_at = datetime.now().isoformat()
+                
+#                 cursor.execute(
+#                     "UPDATE uploads SET status = ?, updated_at = ? WHERE id = ?",
+#                     (new_status, updated_at, job_id)
+#                 )
+                
+#                 # Log da mudança
+#                 log_action(
+#                     user_id, 
+#                     f'Status atualizado: {current_status} → {new_status}', 
+#                     f'Job {base_name} (Slurm: {slurm_job_id})'
+#                 )
+                
+#                 print(f"[SLURM MONITOR] Job {base_name} atualizado: {current_status} -> {new_status}")
+#                 updated_count += 1
+                
+#                 # Se terminou, verificar output
+#                 if new_status in ['COMPLETO', 'ERRO']:
+#                     check_job_output(slurm_job_id, base_name, user_id, new_status)
+        
+#         conn.commit()
+#         conn.close()
+        
+#         if updated_count > 0:
+#             print(f"[SLURM MONITOR] {updated_count} jobs atualizados")
+            
+#     except Exception as e:
+#         print(f"[SLURM MONITOR] Erro ao atualizar status: {e}")
+#         import traceback
+#         traceback.print_exc()
+
 def update_job_status_from_slurm():
     """Atualiza status dos jobs no banco baseado no Slurm"""
     try:
+        from datetime import datetime # Garantindo o import do datetime
         conn = get_db_connection()
         cursor = conn.cursor()
         
@@ -446,7 +550,6 @@ def update_job_status_from_slurm():
         updated_count = 0
         
         for job_id, base_name, slurm_job_id, current_status, user_id in jobs:
-            # SEMPRE inicializar slurm_status como None
             slurm_status = None
             
             try:
@@ -454,7 +557,6 @@ def update_job_status_from_slurm():
                 print(f"[DEBUG] Job {slurm_job_id} -> Slurm status: {slurm_status}")
             except Exception as e:
                 print(f"[ERROR] Erro ao obter status para job {slurm_job_id}: {e}")
-                # Se deu erro, marca como ERRO para não ficar travado
                 new_status = 'ERRO'
                 
                 cursor.execute(
@@ -462,55 +564,63 @@ def update_job_status_from_slurm():
                     (new_status, datetime.now().isoformat(), f"Erro ao obter status: {e}", job_id)
                 )
                 updated_count += 1
-                continue  # Pula para o próximo job
+                continue
             
             # SE slurm_status for None, vazio, ou erro no Slurm
             if not slurm_status:
                 print(f"[WARNING] Status vazio para job {slurm_job_id}. Verificando se job existe...")
                 
-                # Se o job estava PROCESSANDO e agora não existe mais no Slurm, provavelmente terminou
-                if current_status == 'PROCESSANDO':
-                    # Verifica se o output foi gerado
-                    if check_job_completed_on_server(base_name, user_id):
-                        new_status = 'COMPLETO'
-                    else:
-                        new_status = 'ERRO'
-                    
-                    cursor.execute(
-                        "UPDATE uploads SET status = ?, updated_at = ? WHERE id = ?",
-                        (new_status, datetime.now().isoformat(), job_id)
-                    )
-                    
-                    print(f"[AUTO-FIX] Job {base_name} marcado como {new_status} (não encontrado no Slurm)")
-                    updated_count += 1
+                # Se sumiu do Slurm (mesmo se estava PENDENTE ou PROCESSANDO), vamos validar se gerou output
+                if check_job_completed_on_server(base_name, user_id):
+                    new_status = 'COMPLETO'
+                else:
+                    # Se não gerou arquivo de saída e sumiu do Slurm, deu erro.
+                    new_status = 'ERRO'
                 
-                continue  # Pula para o próximo job
+                cursor.execute(
+                    "UPDATE uploads SET status = ?, updated_at = ? WHERE id = ?",
+                    (new_status, datetime.now().isoformat(), job_id)
+                )
+                
+                print(f"[AUTO-FIX] Job {base_name} marcado como {new_status} (não encontrado no Slurm)")
+                updated_count += 1
+                continue
             
             # Mapear status Slurm para nossos status
             new_status = current_status  # Mantém o atual por padrão
             
+            # CORREÇÃO AQUI: Adicionado os códigos de OOM e Preempted do Slurm
             if slurm_status in ['PENDING', 'PD', 'CF', 'S']:
                 new_status = 'PENDENTE'
             elif slurm_status in ['RUNNING', 'R', 'ST', 'CG']:
                 new_status = 'PROCESSANDO'
             elif slurm_status in ['COMPLETED', 'CD']:
                 new_status = 'COMPLETO'
-            elif slurm_status in ['FAILED', 'F', 'TO', 'NF', 'CA', 'DL']:
+            elif slurm_status in ['FAILED', 'F', 'TO', 'NF', 'CA', 'DL', 'OUT_OF_MEMORY', 'OOM', 'NODE_FAIL', 'PREEMPTED', 'PR']:
                 new_status = 'ERRO'
             
             # Atualizar se mudou
             if new_status != current_status:
                 updated_at = datetime.now().isoformat()
                 
-                cursor.execute(
-                    "UPDATE uploads SET status = ?, updated_at = ? WHERE id = ?",
-                    (new_status, updated_at, job_id)
-                )
+                # Se for erro de memória (OOM), é legal já gravar no banco o motivo
+                error_msg = "Job falhou por falta de memória (OOM)." if slurm_status in ['OUT_OF_MEMORY', 'OOM'] else None
+                
+                if error_msg:
+                    cursor.execute(
+                        "UPDATE uploads SET status = ?, updated_at = ?, error_log = ? WHERE id = ?",
+                        (new_status, updated_at, error_msg, job_id)
+                    )
+                else:
+                    cursor.execute(
+                        "UPDATE uploads SET status = ?, updated_at = ? WHERE id = ?",
+                        (new_status, updated_at, job_id)
+                    )
                 
                 # Log da mudança
                 log_action(
                     user_id, 
-                    f'Status atualizado: {current_status} → {new_status}', 
+                    f'Status atualizado: {current_status} → {new_status} ({slurm_status})', 
                     f'Job {base_name} (Slurm: {slurm_job_id})'
                 )
                 
